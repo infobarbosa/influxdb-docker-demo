@@ -32,9 +32,9 @@ Ambos chave e valor devem ser do tipo `string`.<br>
 O protocolo suporta múltiplas ocorrências de tags.
 
 - `<field_key>=<field_value>` (obrigatório e case-sensitive) <br>
-Fields (campos) representadas por pares chave-valor para o data point.<br>
-Points necessitam ter pelo menos um Field.<br>
-Fields keys (chaves) devem ser do tipo `string`, field values (valores) podem ser dos tipos `Float`, `Integer`, `UInteger`, `String` e `Boolean`.
+    - Fields (campos) representadas por pares chave-valor para o data point.<br>
+    - Points necessitam ter pelo menos um Field.<br>
+    - Fields keys (chaves) devem ser do tipo `string`, field values (valores) podem ser dos tipos `Float`, `Integer`, `UInteger`, `String` e `Boolean`.
 
 - `[<timestamp>]` é expresso em nanossegundos e não obrigatório.<br>
 **Atenção!** Caso não informado no protocolo de linha, o InfluxDB atribuirá um valor baseado no  timestamp interno do servidor.
