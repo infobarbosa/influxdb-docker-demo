@@ -89,3 +89,122 @@ docker compose logs -f
 > Para sair do comando acima, digite `Control+C`
 
 
+## InfluxDB - influx write
+
+`influx write` escreve data points no InfluxDB via entrada padrão (console) ou a partir de um arquivo de dados.
+<br>
+
+### Sintaxe
+
+```
+influx write [flags]
+influx write [command]
+``` 
+
+Maiores informações podem ser obtidas em https://docs.influxdata.com/influxdb/v2.5/reference/cli/influx/write/
+
+### Exemplos:
+Primeiro vamos escrever um data point que representa uma venda (pedido) de uma geladeira:
+```
+docker exec -it influxdb-demo \
+influx write --bucket ecommerce "pedidos,produto=GELADEIRA quantidade=1,preco=2000 1668387574000000000"
+```
+
+Agora vamos escrever outro datapoint que representa a venda de duas televisões:
+> Perceba que desta vez não informamos o timestamp.
+```
+docker exec -it influxdb-demo \
+influx write --bucket ecommerce "pedidos,produto=TV quantidade=2,preco=5000"
+```
+
+Inserindo múltiplos data points
+```
+docker exec -it influxdb-demo \
+influx write --bucket ecommerce "
+pedidos,produto=FOGAO quantidade=1,preco=1000 1668426060401463300
+pedidos,produto=GELADEIRA quantidade=1,preco=2000 1668426081342160900
+pedidos,produto=LAVADOURA quantidade=1,preco=1000 1668426093037252400
+pedidos,produto=FILTRO quantidade=1,preco=500 1668426100229183600
+pedidos,produto=TV quantidade=1,preco=5000 1668426107622748900
+"
+```
+
+## InfluxDB v2 API
+<br>
+
+A API v2 HTTP do InfluxDB oferece uma interface programática para interações com o database.
+Neste tópico vamos escrever data points utilizando o endpoint padrão `/api/v2/write` e line protocol. 
+<br>
+Para mais informações acesse https://docs.influxdata.com/influxdb/v2.5/write-data/developer-tools/api/
+
+### Exemplos:
+Atenção! Para fins didáticos estamos omitindo o timestamp.
+
+##### Utilizando POST
+```
+curl --request POST \
+"http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
+  --header "Authorization: Token 3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==" \
+  --header "Content-Type: text/plain; charset=utf-8" \
+  --header "Accept: application/json" \
+  --data-binary 'pedidos,produto=COMPUTADOR quantidade=1,preco=2000'
+```
+
+##### Utilizando XPOST**
+```
+curl -i -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
+  --header 'Authorization: Token 3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==' \
+  --data-raw 'pedidos,produto=SANDUICHEIRA quantidade=1,preco=2000'
+```
+
+##### Parâmetro header "Content-Type"
+```
+curl -i -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
+  --header 'Authorization: Token 3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==' \
+  --header "Content-Type: text/plain; charset=utf-8" \
+  --data-raw 'pedidos,produto=LAVADORA quantidade=1,preco=6000'
+```
+
+##### Parâmetro header "Accept"
+```
+curl -i -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
+  --header 'Authorization: Token 3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==' \
+  --header "Content-Type: text/plain; charset=utf-8" \
+  --header "Accept: application/json" \
+  --data-raw 'pedidos,produto=ASPIRADOR quantidade=5,preco=600'
+```
+
+# InfluxDB UI
+<br>
+Vamos acessar a interface web do InfluxDB.
+
+### [Cloud9] Acessando a InfluxDB UI
+- No console do EC2 acesse o security group (grupo de segurança) e adicione uma regra de entrada (ingress) especificando a porta 8086 (porta do InfluxDB) aberta para 0.0.0.0/0.
+- Obtenha o DNS Público da instância EC2.
+- Em uma nova janela do browser informe o DNS Público com a porta 8086. 
+- Na tela do InfluxDB UI informe o usuário `barbosa` e senha `mudar123`.
+
+### Solução 1
+- No menu Buckets busque por "ecommerce"
+- No canto superior à direita ative a chave seletora "Switch do old data explorer."
+- Em "From" escolha o bucket "ecommerce"
+- Em "Filter" escolha a measurement "pedidos"
+- No novo "Filter" que se abrir escolha "quantidade"
+- Escolha o intervalo de 1 minuto ou 5 minutos para visualização
+- Clique em "Submit"
+
+### Solução 2
+- No menu Buckets busque por "ecommerce"
+- No canto superior à direita ative a chave seletora "Switch do old data explorer."
+- Clique em "Script Editor" e informe a consulta Flux a seguir:
+```
+from(bucket: "ecommerce")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r["_measurement"] == "pedidos")
+  |> filter(fn: (r) => r["_field"] == "quantidade")
+  |> group(columns: ["produto"])
+  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)
+  |> yield(name: "sum")
+```  
+- Escolha o intervalo de 1 minuto ou 5 minutos para visualização
+- Clique em "Submit"
