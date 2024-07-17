@@ -43,3 +43,49 @@ Fields keys (chaves) devem ser do tipo `string`, field values (valores) podem se
 ```
 pedidos,produto=GELADEIRA Quantity=1,UnitPrice=2000 1668387574000000000
 ```
+
+# Laboratório
+
+## Ambiente
+Este laborarório pode ser executado em qualquer estação de trabalho.<br>
+Recomendo, porém, a execução em sistema operacional Linux.<br>
+Caso você não tenha um à sua disposição, recomendo o uso do AWS Cloud9. Siga essas [instruções](Cloud9/README.md).
+
+## Setup
+Para começar, faça o clone deste repositório:
+```
+git clone https://github.com/infobarbosa/influxdb-docker-demo.git
+```
+
+No terminal, navegue para o diretório do repositório
+```
+cd influxdb-docker-demo
+```
+
+## Docker
+Por simplicidade, vamos utilizar o InfluxDB em um container baseado em *Docker*.<br>
+Na raiz do projeto está disponível um arquivo `compose.yaml` que contém os parâmetros de inicialização do container Docker.<br>
+Embora não seja escopo deste laboratório o entendimento detalhado do Docker, recomendo o estudo do arquivo `compose.yaml`.
+
+```
+ls -la compose.yaml
+```
+
+Output esperado:
+```
+ls -la compose.yaml
+-rw-r--r-- 1 barbosa barbosa 144 jul 16 23:20 compose.yaml
+```
+
+#### Inicialização
+```
+docker compose up -d
+```
+
+Para verificar se está tudo correto:
+```
+docker compose logs -f
+```
+> Para sair do comando acima, digite `Control+C`
+
+
