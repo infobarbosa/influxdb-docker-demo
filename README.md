@@ -195,7 +195,7 @@ Neste repositório incluí o script `pedidos.sh` que gera pedidos aleatórios.<b
 Dessa forma será possível visualizar de forma mais efetiva as capacidades do InfluxDB.
 
 ```
-nohup sh ./assets/scripts/pedidos.sh
+nohup bash ./assets/scripts/pedidos.sh
 ```
 
 ### Solução 1
