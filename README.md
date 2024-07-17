@@ -178,11 +178,25 @@ curl -i -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecom
 <br>
 Vamos acessar a interface web do InfluxDB.
 
-### [Cloud9] Acessando a InfluxDB UI
+### Acessando a InfluxDB UI
+
+##### Máquina local
+- Abra o seu navegador e digite localhost:8086
+- Na tela do InfluxDB UI informe o usuário `barbosa` e senha `mudar123`.
+
+##### Cloud9
 - No console do EC2 acesse o security group (grupo de segurança) e adicione uma regra de entrada (ingress) especificando a porta 8086 (porta do InfluxDB) aberta para 0.0.0.0/0.
 - Obtenha o DNS Público da instância EC2.
 - Em uma nova janela do browser informe o DNS Público com a porta 8086. 
 - Na tela do InfluxDB UI informe o usuário `barbosa` e senha `mudar123`.
+
+### `pedidos.sh`
+Neste repositório incluí o script `pedidos.sh` que gera pedidos aleatórios.<br>
+Dessa forma será possível visualizar de forma mais efetiva as capacidades do InfluxDB.
+
+```
+nohup sh ./assets/scripts/pedidos.sh
+```
 
 ### Solução 1
 - No menu Buckets busque por "ecommerce"
