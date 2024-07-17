@@ -37,7 +37,7 @@ Onde:
     - Fields keys (chaves) devem ser do tipo `string`, field values (valores) podem ser dos tipos `Float`, `Integer`, `UInteger`, `String` e `Boolean`.
 
 - `[<timestamp>]` é expresso em nanossegundos e não obrigatório.<br>
-    > Caso não informado no protocolo de linha, o InfluxDB atribuirá um valor baseado no  timestamp interno do servidor.
+    > Caso não informado, o InfluxDB utiliza o timestamp interno do servidor.
 
 **Exemplo**:
 ```
