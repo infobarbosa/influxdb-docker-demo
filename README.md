@@ -185,10 +185,18 @@ Vamos acessar a interface web do InfluxDB.
 - Na tela do InfluxDB UI informe o usuário `barbosa` e senha `mudar123`.
 
 ##### Cloud9
-- No console do EC2 acesse o security group (grupo de segurança) e adicione uma regra de entrada (ingress) especificando a porta 8086 (porta do InfluxDB) aberta para 0.0.0.0/0.
-- Obtenha o DNS Público da instância EC2.
-- Em uma nova janela do browser informe o DNS Público com a porta 8086. 
-- Na tela do InfluxDB UI informe o usuário `barbosa` e senha `mudar123`.
+Execute o script `cloud9.sh`:
+```
+bash ./assets/scripts/cloud9.sh
+```
+
+Output esperado:
+```
+```
+
+Ao final da execução será disponibilizado um URL, endereço para o InfluxDB UI.<br>
+Copie o endereço e cole em uma nova janela do navegador.<br>
+Na tela do InfluxDB UI informe o usuário `barbosa` e senha `mudar123`.
 
 ### `pedidos.sh`
 Neste repositório incluí o script `pedidos.sh` que gera pedidos aleatórios.<br>
