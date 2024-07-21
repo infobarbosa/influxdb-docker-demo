@@ -18,4 +18,4 @@ export CLOUD9_EC2_SECURITY_GROUP_ID=$(aws ec2 describe-instances --instance-id $
 aws ec2 authorize-security-group-ingress --group-id $CLOUD9_EC2_SECURITY_GROUP_ID --protocol tcp --port 8086 --cidr 0.0.0.0/0
 
 echo "Configurações aplicadas com sucesso!"
-echo "Acesse o ambiente Cloud9 em: https://$CLOUD9_EC2_PUBLIC_DNS:8086"
+echo "Acesse o ambiente Cloud9 em: http://$CLOUD9_EC2_PUBLIC_DNS:8086"
