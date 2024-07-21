@@ -192,9 +192,17 @@ bash ./assets/scripts/cloud9.sh
 
 Output esperado:
 ```
+### Atualizando o sistema ###
+Get:1 http://us-east-1.ec2.archive.ubuntu.com/ubuntu jammy InRelease [270 kB]
+Get:2 http://us-east-1.ec2.archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]   
+...
+Inicializando script pedidos.sh
+Configurações aplicadas com sucesso!
+Acesse o ambiente Cloud9 em: http://ec2-34-238-49-243.compute-1.amazonaws.com:8086
+nohup: appending output to 'nohup.out'
 ```
 
-Ao final da execução será disponibilizado um URL, endereço para o InfluxDB UI.<br>
+Perceba que ao final da execução será disponibilizado um URL, endereço para o InfluxDB UI.<br>
 Copie o endereço e cole em uma nova janela do navegador.<br>
 Na tela do InfluxDB UI informe o usuário `barbosa` e senha `mudar123`.
 
