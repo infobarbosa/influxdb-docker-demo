@@ -1,4 +1,15 @@
 services:
+  app:
+    image: "infobarbosa/influxproducer"
+    container_name: influxproducer
+    environment:
+      - INFLUXDB_HOST=influxdb-demo
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==
+      - INFLUXDB_ORG=infobarbosa
+      - INFLUXDB_BUCKET=ecommerce
+    depends_on:
+      - influxdb
   influxdb:
     image: influxdb:latest
     container_name: influxdb-demo
