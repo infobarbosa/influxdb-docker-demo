@@ -235,3 +235,26 @@ from(bucket: "ecommerce")
 ```  
 - Escolha o intervalo de 1 minuto ou 5 minutos para visualização
 - Clique em "Submit"
+
+Outra consulta de exemplo:
+```
+from(bucket: "ecommerce")
+  |> range(start: -30m)
+  |> filter(fn: (r) => r["_measurement"] == "pedidos")
+  |> filter(fn: (r) => r["_field"] == "quantidade")
+  |> group(columns: ["produto"])
+  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)
+  |> yield(name: "sum")
+
+```
+
+## Parabéns!
+
+Parabéns por concluir o laboratório de Armazenamento de Séries Temporais com InfluxDB! Espero que você tenha aprendido bastante sobre como utilizar o InfluxDB para armazenar e consultar dados de séries temporais. Continue praticando e explorando as funcionalidades do InfluxDB para aprimorar ainda mais seus conhecimentos.
+
+Se tiver dúvidas ou sugestões, sinta-se à vontade para entrar em contato.
+
+Bom trabalho e até a próxima!
+
+Prof. Barbosa
+
