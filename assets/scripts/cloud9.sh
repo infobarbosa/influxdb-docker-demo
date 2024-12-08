@@ -83,6 +83,7 @@ echo "### Incluindo regra de acesso público ao ambiente Cloud9 ###"
 echo "############################################################"
 
 aws ec2 authorize-security-group-ingress --group-id $CLOUD9_EC2_SECURITY_GROUP_ID --protocol tcp --port 8086 --cidr 0.0.0.0/0
+aws ec2 authorize-security-group-ingress --group-id $CLOUD9_EC2_SECURITY_GROUP_ID --protocol tcp --port 3000 --cidr 0.0.0.0/0
 
 echo "### Regra de acesso público incluída com sucesso! ###"
 
