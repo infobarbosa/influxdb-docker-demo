@@ -2,8 +2,6 @@ services:
   influxdb:
     image: influxdb:latest
     container_name: influxdb-demo
-    volumes:
-      - ./assets/certificates/ssl/:/etc/ssl/
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=barbosa
