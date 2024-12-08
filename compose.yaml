@@ -22,7 +22,5 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=infobarbosa
       - DOCKER_INFLUXDB_INIT_BUCKET=ecommerce
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==
-      - INFLUXD_TLS_CERT=/etc/ssl/influxdb.crt
-      - INFLUXD_TLS_KEY=/etc/ssl/influxdb.key
     ports:
       - "8086:8086"
