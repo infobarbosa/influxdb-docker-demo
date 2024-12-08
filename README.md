@@ -55,12 +55,38 @@ Caso você não tenha um à sua disposição, recomendo o uso do AWS Cloud9. Sig
 Para começar, faça o clone deste repositório:
 ```
 git clone https://github.com/infobarbosa/influxdb-docker-demo.git
+
 ```
 
 No terminal, navegue para o diretório do repositório
 ```
 cd influxdb-docker-demo
+
 ```
+
+##### Cloud9
+Caso você esteja utilizando o AWS Cloud9 nesse laboratório será necessário executar o seguinte script para prosseguirmos:
+
+```
+bash ./assets/scripts/cloud9.sh
+
+```
+
+**Atenção!** <br>
+Ao final da execução do script será disponibilizado um URL. Copie e guarde-o porque vamos utilizá-lo mais tarde neste laboratório.
+
+Output esperado:
+```
+### Atualizando o sistema ###
+Get:1 http://us-east-1.ec2.archive.ubuntu.com/ubuntu jammy InRelease [270 kB]
+Get:2 http://us-east-1.ec2.archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]   
+...
+...
+Acesse o ambiente Cloud9 em: http://ec2-34-238-49-243.compute-1.amazonaws.com:8086
+
+```
+
+Perceba que ao final da execução será disponibilizado um URL, endereço para o InfluxDB UI.<br>
 
 ## Docker
 Por simplicidade, vamos utilizar o InfluxDB em um container baseado em *Docker*.<br>
@@ -180,46 +206,12 @@ Vamos acessar a interface web do InfluxDB.
 
 ### Acessando a InfluxDB UI
 
-##### Máquina local
-- Abra o seu navegador e digite localhost:8086
+- Abra o seu navegador e digite o endereço do influxdb:
+  Se você estiver utilizando o AWS Cloud9 então o endereço foi disponibilizado na sessão de configuração do Cloud9 acima.<br>
+  Caso esteja utilizando sua máquina local então o endereço será `localhost:8086`.
 - Na tela do InfluxDB UI informe o usuário `barbosa` e senha `mudar123`.
 
-##### Cloud9
-Execute o script `cloud9.sh`:
-```
-bash ./assets/scripts/cloud9.sh
-```
-
-Output esperado:
-```
-### Atualizando o sistema ###
-Get:1 http://us-east-1.ec2.archive.ubuntu.com/ubuntu jammy InRelease [270 kB]
-Get:2 http://us-east-1.ec2.archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]   
-...
-Inicializando script pedidos.sh
-Configurações aplicadas com sucesso!
-Acesse o ambiente Cloud9 em: http://ec2-34-238-49-243.compute-1.amazonaws.com:8086
-nohup: appending output to 'nohup.out'
-```
-
-Perceba que ao final da execução será disponibilizado um URL, endereço para o InfluxDB UI.<br>
-Copie o endereço e cole em uma nova janela do navegador.<br>
-Na tela do InfluxDB UI informe o usuário `barbosa` e senha `mudar123`.
-
-### `pedidos.sh`
-Neste repositório incluí o script `pedidos.sh` que gera pedidos aleatórios.<br>
-Dessa forma será possível visualizar de forma mais efetiva as capacidades do InfluxDB.
-
-```
-nohup bash ./assets/scripts/pedidos.sh &
-```
-
-Para conferir execute o comando abaixo:
-```
-ps aux | grep -i pedidos.sh
-```
-
-### Solução 1
+### Opção 1 (Visual)
 - No menu Buckets busque por "ecommerce"
 - No canto superior à direita ative a chave seletora "Switch do old data explorer."
 - Em "From" escolha o bucket "ecommerce"
@@ -228,7 +220,7 @@ ps aux | grep -i pedidos.sh
 - Escolha o intervalo de 1 minuto ou 5 minutos para visualização
 - Clique em "Submit"
 
-### Solução 2
+### Opção 2 (Linguagem Flux)
 - No menu Buckets busque por "ecommerce"
 - No canto superior à direita ative a chave seletora "Switch do old data explorer."
 - Clique em "Script Editor" e informe a consulta Flux a seguir:
