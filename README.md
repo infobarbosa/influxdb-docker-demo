@@ -87,6 +87,13 @@ Acesse o ambiente Cloud9 em: http://ec2-34-238-49-243.compute-1.amazonaws.com:80
 ```
 
 Perceba que ao final da execução será disponibilizado um URL, endereço para o InfluxDB UI.<br>
+Caso você se esqueça desse URL, basta executar o seguinte comando:
+```
+export CLOUD9_EC2_INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data//instance-id)
+export CLOUD9_EC2_PUBLIC_DNS=$(aws ec2 describe-instances --instance-id $CLOUD9_EC2_INSTANCE_ID | jq -r .Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicDnsName)
+echo "O DNS público da instância EC2 do ambiente Cloud9: $CLOUD9_EC2_PUBLIC_DNS ###"
+
+```
 
 ## Docker
 Por simplicidade, vamos utilizar o InfluxDB em um container baseado em *Docker*.<br>
