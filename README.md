@@ -237,6 +237,8 @@ from(bucket: "ecommerce")
 - Clique em "Submit"
 
 Outra consulta de exemplo:
+
+1. Vendas agrupadas por produto
 ```
 from(bucket: "ecommerce")
   |> range(start: -30m)
@@ -247,6 +249,57 @@ from(bucket: "ecommerce")
   |> yield(name: "sum")
 
 ```
+
+2. Vendas agrupadas por país
+```
+from(bucket: "ecommerce")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r["_measurement"] == "pedidos")
+  |> filter(fn: (r) => r["_field"] == "quantidade")
+  |> group(columns: ["_measurement", "_field", "pais"])
+  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)
+  |> yield(name: "sum")
+
+```
+
+3. Vendas de celular 
+```
+from(bucket: "ecommerce")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r["_measurement"] == "pedidos")
+  |> filter(fn: (r) => r["_field"] == "quantidade")
+  |> filter(fn: (r) => r["produto"] == "CELULAR")
+  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)
+  |> yield(name: "sum")
+
+```
+
+4. Vendas do Brasil
+```
+from(bucket: "ecommerce")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r["_measurement"] == "pedidos")
+  |> filter(fn: (r) => r["_field"] == "quantidade")
+  |> filter(fn: (r) => r["pais"] == "BR")
+  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)
+  |> yield(name: "sum")
+
+```
+
+5. Vendas de geladeira na Austrália
+```
+from(bucket: "ecommerce")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r["_measurement"] == "pedidos")
+  |> filter(fn: (r) => r["_field"] == "quantidade")
+  |> filter(fn: (r) => r["produto"] == "GELADEIRA")
+  |> filter(fn: (r) => r["pais"] == "AU")
+  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)
+  |> yield(name: "sum")
+
+```
+
+
 
 ## Parabéns!
 
