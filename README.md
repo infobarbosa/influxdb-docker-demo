@@ -250,7 +250,19 @@ from(bucket: "ecommerce")
 
 ```
 
-2. Vendas agrupadas por país
+2. Ajustando a janela para 1 minuto
+```
+from(bucket: "ecommerce")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r["_measurement"] == "pedidos")
+  |> filter(fn: (r) => r["_field"] == "quantidade")
+  |> group(columns: ["_measurement", "_field", "pais"])
+  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)
+  |> yield(name: "sum")
+
+```
+
+3. Vendas agrupadas por país
 ```
 from(bucket: "ecommerce")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
@@ -262,7 +274,7 @@ from(bucket: "ecommerce")
 
 ```
 
-3. Vendas de celular 
+4. Vendas de celular 
 ```
 from(bucket: "ecommerce")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
@@ -274,7 +286,7 @@ from(bucket: "ecommerce")
 
 ```
 
-4. Vendas do Brasil
+5. Vendas do Brasil
 ```
 from(bucket: "ecommerce")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
@@ -286,7 +298,7 @@ from(bucket: "ecommerce")
 
 ```
 
-5. Vendas de geladeira na Austrália
+6. Vendas de geladeira na Austrália
 ```
 from(bucket: "ecommerce")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
@@ -298,8 +310,6 @@ from(bucket: "ecommerce")
   |> yield(name: "sum")
 
 ```
-
-
 
 ## Parabéns!
 
