@@ -6,7 +6,7 @@ Github: [infobarbosa](https://github.com/infobarbosa)
 
 O objetivo desse laboratório é oferecer ao aluno ambiente onde de familiarização com o modelo de armazenamento de séries temporais utilizando **InfluxDB**.
 
-## InfluxDB
+## Introdução
 
 [InfluxDB](https://docs.influxdata.com/influxdb/v2/get-started/) é um banco de dados de série temporal de código aberto desenvolvido pela empresa InfluxData. Ele é usado para armazenamento e recuperação de dados de séries temporais em áreas como monitoramento de operações, métricas de aplicativos, dados de sensores da Internet das Coisas e análises em tempo real.<br>
 > Fonte: [Wikipedia](https://en.wikipedia.org/wiki/InfluxDB)
@@ -16,11 +16,12 @@ O objetivo desse laboratório é oferecer ao aluno ambiente onde de familiariza�
 O protocolo de linha (line protocol) do InfluxDB é um formato simples baseado em texto adotado para escrita de data points no banco de dados.
 <br>
 
-#### Sintaxe
+### Sintaxe
 
 ```
 <measurement>[,<tag_key>=<tag_value>[,<tag_key>=<tag_value>]] <field_key>=<field_value>[,<field_key>=<field_value>] [<timestamp>]
 ``` 
+
 Onde:
 - `<measurement>` (obrigatório e case-sensitive) <br>
     - Tipo `string` que representa o nome da medida. 
@@ -44,27 +45,13 @@ Onde:
 pedidos,produto=GELADEIRA Quantity=1,UnitPrice=2000 1668387574000000000
 ```
 
-# Laboratório
+## Laboratório
 
-## Ambiente 
+### 1. Ambiente 
 Este laborarório pode ser executado em qualquer estação de trabalho com docker disponível.<br>
 Recomendo, porém, a execução em Linux.<br>
 Caso você não tenha um à sua disposição, utilize o serviço **AWS Cloud9**. As instruções podem ser encontradas [aqui](https://github.com/infobarbosa/data-engineering-cloud9).
 
-## Setup
-Para começar, faça o clone deste repositório:
-```
-git clone https://github.com/infobarbosa/influxdb-docker-demo.git
-
-```
-
-No terminal, navegue para o diretório do repositório
-```
-cd influxdb-docker-demo
-
-```
-
-##### Cloud9
 Caso você esteja utilizando o AWS Cloud9 nesse laboratório será necessário executar o seguinte script para prosseguirmos:
 
 ```
@@ -95,13 +82,27 @@ echo "O DNS público da instância EC2 do ambiente Cloud9: $CLOUD9_EC2_PUBLIC_DN
 
 ```
 
-## Docker
+### 2. Setup
+Para começar, faça o clone deste repositório:
+```
+git clone https://github.com/infobarbosa/influxdb-docker-demo.git
+
+```
+
+No terminal, navegue para o diretório do repositório
+```
+cd influxdb-docker-demo
+
+```
+
+### 3. Docker
 Por simplicidade, vamos utilizar o InfluxDB em um container baseado em *Docker*.<br>
 Na raiz do projeto está disponível um arquivo `compose.yaml` que contém os parâmetros de inicialização do container Docker.<br>
 Embora não seja escopo deste laboratório o entendimento detalhado do Docker, recomendo o estudo do arquivo `compose.yaml`.
 
 ```
 ls -la compose.yaml
+
 ```
 
 Output esperado:
@@ -113,21 +114,15 @@ ls -la compose.yaml
 #### Inicialização
 ```
 docker compose up -d
+
 ```
 
-Para verificar se está tudo correto:
-```
-docker compose logs -f
-```
-> Para sair do comando acima, digite `Control+C`
-
-
-## InfluxDB - influx write
+### 4. `influx write`
 
 `influx write` escreve data points no InfluxDB via entrada padrão (console) ou a partir de um arquivo de dados.
 <br>
 
-### Sintaxe
+#### Sintaxe
 
 ```
 influx write [flags]
@@ -136,20 +131,24 @@ influx write [command]
 
 Maiores informações podem ser obtidas em https://docs.influxdata.com/influxdb/v2.5/reference/cli/influx/write/
 
-### Exemplos:
+#### Exemplo 1:
 Primeiro vamos escrever um data point que representa uma venda (pedido) de uma geladeira:
 ```
 docker exec -it influxdb-demo \
 influx write --bucket ecommerce "pedidos,produto=GELADEIRA quantidade=1,preco=2000 1668387574000000000"
+
 ```
 
+#### Exemplo 2:
 Agora vamos escrever outro datapoint que representa a venda de duas televisões:
 > Perceba que desta vez não informamos o timestamp.
 ```
 docker exec -it influxdb-demo \
 influx write --bucket ecommerce "pedidos,produto=TV quantidade=2,preco=5000"
+
 ```
 
+#### Exemplo 3:
 Inserindo múltiplos data points
 ```
 docker exec -it influxdb-demo \
@@ -160,7 +159,168 @@ pedidos,produto=LAVADOURA quantidade=1,preco=1000 1668426093037252400
 pedidos,produto=FILTRO quantidade=1,preco=500 1668426100229183600
 pedidos,produto=TV quantidade=1,preco=5000 1668426107622748900
 "
+
 ```
+
+### 5. `influx query`
+
+Para recuperar as informações inseridas no bucket `ecommerce`, você pode utilizar o comando `influx query`.
+
+#### Exemplo 4 - Recuperar Tudo
+
+Este comando irá retornar todos os dados que estão no measurement "pedidos" dentro do seu bucket.
+
+```bash
+docker exec -it influxdb-demo \
+influx query 'from(bucket: "ecommerce") |> range(start: 0) |> filter(fn: (r) => r._measurement == "pedidos")'
+
+```
+
+**Onde:**
+
+  * `from(bucket: "ecommerce")`: Especifica de qual bucket você quer ler os dados.
+  * `|> range(start: 0)`: Define o intervalo de tempo da consulta. `start: 0` significa "desde o início dos tempos", garantindo que todos os dados sejam retornados.
+  * `|> filter(fn: (r) => r._measurement == "pedidos")`: Filtra os resultados para trazer apenas os que pertencem ao measurement "pedidos".
+
+-----
+
+#### Exemplo 5 - Adicionando critérios de busca
+
+Se você quiser filtrar por um produto específico, como "GELADEIRA", pode adicionar outro filtro.
+
+```bash
+docker exec -it influxdb-demo \
+influx query 'from(bucket: "ecommerce") |> range(start: 0) |> filter(fn: (r) => r._measurement == "pedidos" and r.produto == "GELADEIRA")'
+
+```
+
+**O que mudou:**
+
+  * `and r.produto == "GELADEIRA"`: Adicionamos uma condição para que o campo (tag) "produto" seja igual a "GELADEIRA".
+
+-----
+
+#### Exemplo 6 - `pivot()`
+
+Por padrão, a consulta retorna cada *field* (`quantidade`, `preco`) em uma linha separada. Se você quiser ver os dados de uma forma mais parecida com uma tabela SQL, pode usar a função `pivot()`.
+
+```bash
+docker exec -it influxdb-demo \
+influx query '
+from(bucket: "ecommerce")
+  |> range(start: 0)
+  |> filter(fn: (r) => r._measurement == "pedidos")
+  |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+'
+
+```
+
+**Como `pivot()` funciona?**
+
+  * `rowKey:["_time"]`: Agrupa os resultados em linhas com base no timestamp.
+  * `columnKey: ["_field"]`: Transforma os nomes dos *fields* (`preco`, `quantidade`) em colunas.
+  * `valueColumn: "_value"`: Preenche essas novas colunas com os seus respectivos valores.
+
+O resultado deste último comando será algo visualmente mais organizado, parecido com:
+
+| \_time                | \_measurement | produto   | preco | quantidade |
+| -------------------- | ------------ | --------- | ----- | ---------- |
+| 2022-11-14T11:41:00Z | pedidos      | FOGAO     | 1000  | 1          |
+| 2022-11-14T11:41:21Z | pedidos      | GELADEIRA | 2000  | 1          |
+| ...                  | ...          | ...       | ...   | ...        |
+
+O **primeiro comando** é provavelmente o que precisamos para uma verificação rápida. O **terceiro comando** é excelente para visualizar os dados de forma mais clara.
+
+---
+
+### 6. Especificando o período
+
+Para filtrar os registros de um período específico, é necessário ajustar a função `range()` na nossa consulta.
+
+Defina uma data de início (`start`) e uma data de término (`stop`).
+
+#### Exemplo 7 - Consulta Padrão para 2022
+
+Este comando recupera todos os campos e tags dos registros dentro do ano de 2022.
+
+```bash
+docker exec -it influxdb-demo \
+influx query 'from(bucket: "ecommerce") |> range(start: 2022-01-01T00:00:00Z, stop: 2023-01-01T00:00:00Z) |> filter(fn: (r) => r._measurement == "pedidos")'
+
+```
+
+**O que mudou?**
+
+  * `|> range(start: 2022-01-01T00:00:00Z, stop: 2023-01-01T00:00:00Z)`: Esta linha instrui o InfluxDB a buscar dados que foram registrados entre 1º de janeiro de 2022 à meia-noite e 1º de janeiro de 2023 à meia-noite. O `Z` no final indica o fuso horário UTC (Zulu time), que é o padrão do InfluxDB.
+
+-----
+
+#### Exemplo 8 - Consulta Formatada com Pivot
+
+Se preferir a visualização em formato de tabela, mais organizada, use o comando com a função `pivot()`:
+
+```bash
+docker exec -it influxdb-demo \
+influx query '
+from(bucket: "ecommerce")
+  |> range(start: 2022-01-01T00:00:00Z, stop: 2023-01-01T00:00:00Z)
+  |> filter(fn: (r) => r._measurement == "pedidos")
+  |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+'
+
+```
+
+#### Os últimos X horas, minutos, segundos...
+
+O Flux permite que você use durações relativas para definir o início do seu intervalo de tempo, o que é extremamente útil para dashboards e monitoramento em tempo real.
+
+A sintaxe é um número negativo seguido por uma unidade de tempo. Aqui estão as unidades mais comuns:
+
+*   `s` — segundos
+*   `m` — minutos
+*   `h` — horas
+*   `d` — dias
+*   `w` — semanas
+
+**Por exemplo:**
+
+*   `range(start: -1h)`: Retorna dados da última hora.
+*   `range(start: -30s)`: Retorna dados dos últimos 30 segundos.
+*   `range(start: -7d)`: Retorna dados dos últimos 7 dias.
+
+A seguir, vamos ver como aplicar isso para buscar os dados dos últimos 2 minutos.
+
+---
+
+### Exemplo 9 - Últimos 2 minutos
+
+```bash
+docker exec -it influxdb-demo \
+influx query 'from(bucket: "ecommerce") |> range(start: -2m) |> filter(fn: (r) => r._measurement == "pedidos")'
+
+```
+
+**O que mudou?**
+
+  * `|> range(start: -2m)`: Aqui, `-2m` é uma duração relativa que diz ao InfluxDB para definir o início do intervalo de tempo para 2 minutos no passado em relação ao momento em que a consulta é executada. A data de término (`stop`) é, por padrão, "agora".
+
+-----
+
+### Exemplo 10 - Últimos 2 minutos com `pivot()`
+
+Para uma visualização mais limpa, no estilo de tabela, use o comando com `pivot()`.
+
+```bash
+docker exec -it influxdb-demo \
+influx query '
+from(bucket: "ecommerce")
+  |> range(start: -2m)
+  |> filter(fn: (r) => r._measurement == "pedidos")
+  |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+'
+```
+
+---
 
 ## InfluxDB v2 API
 <br>
@@ -207,7 +367,7 @@ curl -i -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecom
   --data-raw 'pedidos,produto=ASPIRADOR quantidade=5,preco=600'
 ```
 
-# InfluxDB UI
+## InfluxDB UI
 <br>
 Vamos acessar a interface web do InfluxDB.
 
