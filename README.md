@@ -95,6 +95,36 @@ cd influxdb-docker-demo
 
 ```
 
+---
+
+- A. diretório de trabalho
+```bash
+mkdir influxdb-demo
+
+```
+
+```bash
+cd influxdb-demo
+
+```
+
+- B. Script de setup
+```bash
+wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/assets/scripts/cloud9.sh
+
+```
+
+```bash
+bash ./cloud9.sh
+
+```
+
+- C. `compose.yaml`
+```bash
+wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/compose.yaml
+
+```
+
 ### 3. Docker
 Por simplicidade, vamos utilizar o InfluxDB em um container baseado em *Docker*.<br>
 Na raiz do projeto está disponível um arquivo `compose.yaml` que contém os parâmetros de inicialização do container Docker.<br>
