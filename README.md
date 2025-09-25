@@ -52,10 +52,17 @@ Este laborarório pode ser executado em qualquer estação de trabalho com docke
 Recomendo, porém, a execução em Linux.<br>
 Caso você não tenha um à sua disposição, utilize o serviço **AWS Cloud9**. As instruções podem ser encontradas [aqui](https://github.com/infobarbosa/data-engineering-cloud9).
 
-Caso você esteja utilizando o AWS Cloud9 nesse laboratório será necessário executar o seguinte script para prosseguirmos:
+
+### 2. Setup (APENAS PARA AWS CLOUD9)
+Baixe e execute o script de setup
+
+```bash
+wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/assets/scripts/cloud9.sh
 
 ```
-bash ./assets/scripts/cloud9.sh
+
+```bash
+bash ./cloud9.sh
 
 ```
 
@@ -82,53 +89,14 @@ echo "O DNS público da instância EC2 do ambiente Cloud9: $CLOUD9_EC2_PUBLIC_DN
 
 ```
 
-### 2. Setup
-Para começar, faça o clone deste repositório:
-```
-git clone https://github.com/infobarbosa/influxdb-docker-demo.git
+### 3. Docker Compose
 
-```
-
-No terminal, navegue para o diretório do repositório
-```
-cd influxdb-docker-demo
-
-```
-
----
-
-- A. diretório de trabalho
-```bash
-mkdir influxdb-demo
-
-```
-
-```bash
-cd influxdb-demo
-
-```
-
-- B. Script de setup
-```bash
-wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/assets/scripts/cloud9.sh
-
-```
-
-```bash
-bash ./cloud9.sh
-
-```
-
-- C. `compose.yaml`
+Por simplicidade, vamos utilizar o InfluxDB em um container baseado em *Docker*.<br>
+#### Baixe o script `compose.yaml`
 ```bash
 wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/compose.yaml
 
 ```
-
-### 3. Docker
-Por simplicidade, vamos utilizar o InfluxDB em um container baseado em *Docker*.<br>
-Na raiz do projeto está disponível um arquivo `compose.yaml` que contém os parâmetros de inicialização do container Docker.<br>
-Embora não seja escopo deste laboratório o entendimento detalhado do Docker, recomendo o estudo do arquivo `compose.yaml`.
 
 ```
 ls -la compose.yaml
