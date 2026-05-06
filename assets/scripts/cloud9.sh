@@ -12,22 +12,20 @@ export SG_ID=$(aws ec2 describe-instances --instance-id $INSTANCE_ID --query 'Re
 export INSTANCE_SUBNET=$(aws ec2 describe-instances --instance-id $INSTANCE_ID --query 'Reservations[0].Instances[0].SubnetId' --output text)
 export INSTANCE_AZ=$(aws ec2 describe-subnets --subnet-ids $INSTANCE_SUBNET --query 'Subnets[0].AvailabilityZone' --output text)
 
-echo "Instância: $INSTANCE_ID na zona $INSTANCE_AZ"
+echo "Instância detectada: $INSTANCE_ID na zona $INSTANCE_AZ"
 
-# --- 3. Configuração de Segurança (Firewall) ---
+# --- 3. Configuração de Segurança (Firewall da Instância) ---
 echo "### Liberando portas no Security Group da Instância ###"
-# Porta 8086 para o Influx e 3000 para Grafana (se houver)
 aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 8086 --cidr 0.0.0.0/0 2>/dev/null
 aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 3000 --cidr 0.0.0.0/0 2>/dev/null
 
 # --- 4. Lógica Multi-AZ para o Load Balancer ---
 echo "### Selecionando Subnets para o Load Balancer ###"
-# O ALB exige duas subnets em Availability Zones diferentes
 export OTHER_SUBNET=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query "Subnets[?AvailabilityZone!='$INSTANCE_AZ'].SubnetId" --output text | awk '{print $1}')
 export SUBNETS_ALB="$INSTANCE_SUBNET $OTHER_SUBNET"
 
-# --- 5. Criação do Target Group ---
-echo "### Criando Target Group e registrando instância ###"
+# --- 5. Criação do Target Group (Apontando para o InfluxDB) ---
+echo "### Criando Target Group ###"
 export TG_NAME="tg-influx-$(date +%s)"
 export TG_ARN=$(aws elbv2 create-target-group \
     --name $TG_NAME \
@@ -50,9 +48,11 @@ export CERT_ARN=$(aws acm import-certificate --certificate fileb://certificate.c
 # --- 7. Criação do Application Load Balancer (ALB) ---
 echo "### Provisionando o Load Balancer (HTTPS) ###"
 export ALB_NAME="alb-influx-$(date +%s)"
+# CORREÇÃO: O nome do Security Group NÃO pode começar com 'sg-'
+export ALB_SG_NAME="sec-group-alb-$(date +%s)"
 
 # Criando SG para o ALB (Porta 443 pública)
-export ALB_SG_ID=$(aws ec2 create-security-group --group-name "sg-$ALB_NAME" --description "SG para ALB HTTPS" --vpc-id $VPC_ID | jq -r .GroupId)
+export ALB_SG_ID=$(aws ec2 create-security-group --group-name "$ALB_SG_NAME" --description "SG para ALB HTTPS" --vpc-id $VPC_ID | jq -r .GroupId)
 aws ec2 authorize-security-group-ingress --group-id $ALB_SG_ID --protocol tcp --port 443 --cidr 0.0.0.0/0
 
 # Criando o Load Balancer
@@ -68,12 +68,10 @@ echo "############################################################"
 echo "### CONFIGURAÇÃO CONCLUÍDA COM SUCESSO! ###"
 echo "############################################################"
 echo ""
-echo "Aguarde cerca de 3 minutos para o Load Balancer ficar 'Active'."
-echo "Acesse o InfluxDB via HTTPS (Obrigatório):"
+echo "Aguarde o Health Check (aprox. 2-3 min) para estabilizar."
+echo "URL de Acesso ao InfluxDB (HTTPS):"
 echo ""
 echo "👉 https://$ALB_DNS"
 echo ""
-echo "DICA PARA A AULA:"
-echo "Como o certificado é autoassinado, o navegador exibirá um alerta."
-echo "Peça aos alunos para clicarem em 'Avançado' e 'Prosseguir para o site'."
+echo "Nota: Use 'docker compose up -d' se ainda não o fez."
 echo "############################################################"
