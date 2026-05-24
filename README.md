@@ -4,7 +4,7 @@ Author: Prof. Barbosa<br>
 Contact: infobarbosa@gmail.com<br>
 Github: [infobarbosa](https://github.com/infobarbosa)
 
-O objetivo desse laboratório é oferecer ao aluno ambiente onde de familiarização com o modelo de armazenamento de séries temporais utilizando **InfluxDB**.
+O objetivo deste laboratório é oferecer ao aluno um ambiente de familiarização com o modelo de armazenamento de séries temporais utilizando **InfluxDB**.
 
 ## Introdução
 
@@ -33,8 +33,8 @@ Onde:
     - O protocolo suporta múltiplas ocorrências de tags.
 
 - `<field_key>=<field_value>` (obrigatório e case-sensitive) <br>
-    - Fields (campos) representadas por pares chave-valor para o data point.<br>
-    - Points necessitam ter pelo menos um Field.<br>
+    - Fields (campos) representados por pares chave-valor para o data point.<br>
+    - Cada data point precisa ter pelo menos um field.<br>
     - Fields keys (chaves) devem ser do tipo `string`, field values (valores) podem ser dos tipos `Float`, `Integer`, `UInteger`, `String` e `Boolean`.
 
 - `[<timestamp>]` é expresso em nanossegundos e não obrigatório.<br>
@@ -48,7 +48,7 @@ pedidos,produto=GELADEIRA Quantity=1,UnitPrice=2000 1668387574000000000
 ## Laboratório
 
 ### 1. Ambiente 
-Este laborarório pode ser executado em qualquer estação de trabalho com docker disponível.<br>
+Este laboratório pode ser executado em qualquer estação de trabalho com docker disponível.<br>
 Recomendo, porém, a execução em Linux.<br>
 Caso você não tenha um à sua disposição, utilize o serviço **AWS Cloud9**. As instruções podem ser encontradas [aqui](https://github.com/infobarbosa/data-engineering-cloud9).
 
@@ -115,6 +115,11 @@ docker compose up -d
 
 ```
 
+Este comando inicializa três serviços:
+- **`influxdb`**: o banco de dados, acessível na porta `8086`.
+- **`influxproducer`**: produtor de dados de exemplo que insere pedidos simulados continuamente no bucket `ecommerce`, permitindo visualizar dados em tempo real mais adiante.
+- **`grafana`**: plataforma de visualização de dashboards, acessível na porta `3000`. Explorada na seção bônus ao final do laboratório.
+
 ### 4. `influx write`
 
 `influx write` escreve data points no InfluxDB via entrada padrão (console) ou a partir de um arquivo de dados.
@@ -127,13 +132,13 @@ influx write [flags]
 influx write [command]
 ``` 
 
-Maiores informações podem ser obtidas em https://docs.influxdata.com/influxdb/v2.5/reference/cli/influx/write/
+Maiores informações podem ser obtidas em https://docs.influxdata.com/influxdb/v2/reference/cli/influx/write/
 
 #### Exemplo 1:
 Primeiro vamos escrever um data point que representa uma venda (pedido) de uma geladeira:
 ```
 docker exec -it influxdb-demo \
-influx write --bucket ecommerce "pedidos,produto=GELADEIRA quantidade=1,preco=2000 1668387574000000000"
+influx write --bucket ecommerce "pedidos,produto=GELADEIRA,pais=BR quantidade=1,preco=2000 1668387574000000000"
 
 ```
 
@@ -142,7 +147,7 @@ Agora vamos escrever outro datapoint que representa a venda de duas televisões:
 > Perceba que desta vez não informamos o timestamp.
 ```
 docker exec -it influxdb-demo \
-influx write --bucket ecommerce "pedidos,produto=TV quantidade=2,preco=5000"
+influx write --bucket ecommerce "pedidos,produto=TV,pais=US quantidade=2,preco=5000"
 
 ```
 
@@ -151,11 +156,11 @@ Inserindo múltiplos data points
 ```
 docker exec -it influxdb-demo \
 influx write --bucket ecommerce "
-pedidos,produto=FOGAO quantidade=1,preco=1000 1668426060401463300
-pedidos,produto=GELADEIRA quantidade=1,preco=2000 1668426081342160900
-pedidos,produto=LAVADOURA quantidade=1,preco=1000 1668426093037252400
-pedidos,produto=FILTRO quantidade=1,preco=500 1668426100229183600
-pedidos,produto=TV quantidade=1,preco=5000 1668426107622748900
+pedidos,produto=FOGAO,pais=BR quantidade=1,preco=1000 1668426060401463300
+pedidos,produto=GELADEIRA,pais=AU quantidade=1,preco=2000 1668426081342160900
+pedidos,produto=LAVADORA,pais=BR quantidade=1,preco=1000 1668426093037252400
+pedidos,produto=FILTRO,pais=US quantidade=1,preco=500 1668426100229183600
+pedidos,produto=TV,pais=BR quantidade=1,preco=5000 1668426107622748900
 "
 
 ```
@@ -227,7 +232,7 @@ O resultado deste último comando será algo visualmente mais organizado, pareci
 | 2022-11-14T11:41:21Z | pedidos      | GELADEIRA | 2000  | 1          |
 | ...                  | ...          | ...       | ...   | ...        |
 
-O **primeiro comando** é provavelmente o que precisamos para uma verificação rápida. O **terceiro comando** é excelente para visualizar os dados de forma mais clara.
+O comando sem `pivot()` é o mais direto para verificações rápidas. O comando com `pivot()` é excelente quando você quer visualizar os dados em formato tabular.
 
 ---
 
@@ -292,6 +297,8 @@ A seguir, vamos ver como aplicar isso para buscar os dados dos últimos 2 minuto
 
 ### Exemplo 9 - Últimos 2 minutos
 
+> **Atenção:** Este comando busca apenas registros criados nos últimos 2 minutos. Os dados inseridos com timestamp fixo nos exemplos anteriores (novembro de 2022) **não aparecerão**. Apenas o registro do Exemplo 2 — inserido sem timestamp — poderá aparecer aqui, desde que tenha sido executado há menos de 2 minutos.
+
 ```bash
 docker exec -it influxdb-demo \
 influx query 'from(bucket: "ecommerce") |> range(start: -2m) |> filter(fn: (r) => r._measurement == "pedidos")'
@@ -300,7 +307,7 @@ influx query 'from(bucket: "ecommerce") |> range(start: -2m) |> filter(fn: (r) =
 
 **O que mudou?**
 
-  * `|> range(start: -2m)`: Aqui, `-2m` é uma duração relativa que diz ao InfluxDB para definir o início do intervalo de tempo para 2 minutos no passado em relação ao momento em que a consulta é executada. A data de término (`stop`) é, por padrão, "agora".
+  * `|> range(start: -2m)`: `-2m` é uma duração relativa que instrui o InfluxDB a definir o início do intervalo para 2 minutos no passado a partir do momento da execução. A data de término (`stop`) é, por padrão, "agora".
 
 -----
 
@@ -326,44 +333,42 @@ from(bucket: "ecommerce")
 A API v2 HTTP do InfluxDB oferece uma interface programática para interações com o database.
 Neste tópico vamos escrever data points utilizando o endpoint padrão `/api/v2/write` e line protocol. 
 <br>
-Para mais informações acesse https://docs.influxdata.com/influxdb/v2.5/write-data/developer-tools/api/
+Para mais informações acesse https://docs.influxdata.com/influxdb/v2/write-data/developer-tools/api/
 
 ### Exemplos:
 Atenção! Para fins didáticos estamos omitindo o timestamp.
 
-##### Utilizando POST
+##### Exemplo mínimo
+
+Apenas o header de autenticação é obrigatório:
+
+```bash
+curl -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
+  --header "Authorization: Token 3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==" \
+  --data-raw 'pedidos,produto=SANDUICHEIRA,pais=BR quantidade=1,preco=2000'
 ```
-curl --request POST \
-"http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
+
+##### Exemplo completo
+
+Com todos os headers recomendados (`Content-Type` e `Accept`):
+
+```bash
+curl -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
   --header "Authorization: Token 3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==" \
   --header "Content-Type: text/plain; charset=utf-8" \
   --header "Accept: application/json" \
-  --data-binary 'pedidos,produto=COMPUTADOR quantidade=1,preco=2000'
+  --data-raw 'pedidos,produto=ASPIRADOR,pais=US quantidade=5,preco=600'
 ```
 
-##### Utilizando XPOST**
-```
-curl -i -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
-  --header 'Authorization: Token 3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==' \
-  --data-raw 'pedidos,produto=SANDUICHEIRA quantidade=1,preco=2000'
-```
+## Funções avançadas do Flux
 
-##### Parâmetro header "Content-Type"
-```
-curl -i -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
-  --header 'Authorization: Token 3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==' \
-  --header "Content-Type: text/plain; charset=utf-8" \
-  --data-raw 'pedidos,produto=LAVADORA quantidade=1,preco=6000'
-```
+Antes de explorar a interface gráfica, vale conhecer três funções que aparecem nas consultas a seguir:
 
-##### Parâmetro header "Accept"
-```
-curl -i -XPOST "http://$(hostname):8086/api/v2/write?org=infobarbosa&bucket=ecommerce&precision=ns" \
-  --header 'Authorization: Token 3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==' \
-  --header "Content-Type: text/plain; charset=utf-8" \
-  --header "Accept: application/json" \
-  --data-raw 'pedidos,produto=ASPIRADOR quantidade=5,preco=600'
-```
+- **`group(columns: [...])`**: Reagrupa as linhas do resultado por uma ou mais colunas. Equivalente ao `GROUP BY` do SQL, mas opera sobre as tabelas internas do Flux.
+- **`aggregateWindow(every: ..., fn: ...)`**: Divide o intervalo de tempo em janelas de tamanho fixo (`every`) e aplica uma função de agregação (`fn: sum`, `fn: mean`, etc.) em cada janela. Ideal para séries temporais — permite ver, por exemplo, o total de vendas a cada 10 segundos.
+- **`yield(name: "...")`**: Nomeia o resultado final da consulta. Necessário quando a consulta produz mais de uma tabela de saída; aqui é usado por convenção.
+
+---
 
 ## InfluxDB UI
 <br>
@@ -389,6 +394,9 @@ Vamos acessar a interface web do InfluxDB.
 - No menu Buckets busque por "ecommerce"
 - No canto superior à direita ative a chave seletora "Switch do old data explorer."
 - Clique em "Script Editor" e informe a consulta Flux a seguir:
+
+> **Nota:** `v.timeRangeStart`, `v.timeRangeStop` e `v.windowPeriod` são variáveis de template da interface do InfluxDB. Seus valores são preenchidos automaticamente com base no seletor de período no canto superior direito da UI — você não precisa defini-las manualmente.
+
 ```
 from(bucket: "ecommerce")
   |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
@@ -486,6 +494,47 @@ from(bucket: "ecommerce")
   |> yield(name: "sum")
 
 ```
+
+## Bônus: Grafana
+
+O Grafana é uma plataforma open source de visualização amplamente usada para criar dashboards. Ele já está disponível como parte do ambiente deste laboratório.
+
+### Acessando o Grafana
+
+- Abra o navegador e acesse `localhost:3000` (ou substitua `localhost` pelo endereço do seu ambiente Cloud9).
+- Usuário: `admin` | Senha: `admin`.
+
+### Configurando o InfluxDB como fonte de dados
+
+1. No menu lateral, vá em **Connections > Data Sources > Add data source**.
+2. Escolha **InfluxDB**.
+3. Preencha os campos:
+   - **Query Language**: `Flux`
+   - **URL**: `http://influxdb-demo:8086`
+   - **Organization**: `infobarbosa`
+   - **Token**: `3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==`
+   - **Default Bucket**: `ecommerce`
+4. Clique em **Save & Test**.
+
+### Criando um painel simples
+
+1. Clique em **+** no menu lateral > **New Dashboard > Add visualization**.
+2. Selecione o data source **InfluxDB** recém-criado.
+3. No editor de query, insira:
+
+```flux
+from(bucket: "ecommerce")
+  |> range(start: -30m)
+  |> filter(fn: (r) => r["_measurement"] == "pedidos")
+  |> filter(fn: (r) => r["_field"] == "quantidade")
+  |> group(columns: ["produto"])
+  |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)
+  |> yield(name: "sum")
+```
+
+4. Clique em **Run Query** para visualizar o gráfico de vendas por produto em tempo real.
+
+---
 
 ## Parabéns!
 

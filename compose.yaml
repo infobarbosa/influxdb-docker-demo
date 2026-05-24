@@ -1,6 +1,6 @@
 services:
   influxdb:
-    image: influxdb:latest
+    image: influxdb:2.7
     container_name: influxdb-demo
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
@@ -31,8 +31,6 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
-      - influxdb
-    links:
       - influxdb
 
 
