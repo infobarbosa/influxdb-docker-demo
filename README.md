@@ -421,10 +421,12 @@ O Grafana é uma plataforma open source de visualização amplamente usada para 
 1. No menu lateral, vá em **Connections > Data Sources > Add data source**.
 2. Escolha **InfluxDB**.
 3. Preencha os campos:
-   - **Query Language**: `SQL`
+   - **Query Language**: `InfluxQL`
    - **URL**: `http://influxdb-demo:8181`
    - **Database**: `ecommerce`
 4. Clique em **Save & Test**.
+
+> **Nota:** Use **InfluxQL** (não SQL) na configuração do Grafana. O modo SQL usa Flight SQL (gRPC) que requer TLS; o modo InfluxQL usa HTTP puro e funciona sem configuração adicional. As consultas no terminal continuam sendo SQL padrão — o InfluxQL é usado apenas aqui, para a visualização.
 
 ### Criando um painel simples
 
@@ -432,15 +434,11 @@ O Grafana é uma plataforma open source de visualização amplamente usada para 
 2. Selecione o data source **InfluxDB** recém-criado.
 3. No editor de query, insira:
 
-```sql
-SELECT
-  date_bin(INTERVAL '10 seconds', time) AS time,
-  produto,
-  SUM(quantidade) AS total_vendas
-FROM pedidos
-WHERE time >= $__timeFrom AND time <= $__timeTo
-GROUP BY time, produto
-ORDER BY time
+```
+SELECT SUM("quantidade") AS "total_vendas"
+FROM "pedidos"
+WHERE $timeFilter
+GROUP BY time(10s), "produto"
 ```
 
 4. Clique em **Run Query** para visualizar o gráfico de vendas por produto em tempo real.
