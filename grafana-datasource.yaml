@@ -1,0 +1,11 @@
+apiVersion: 1
+datasources:
+  - name: influxdb
+    type: influxdb
+    access: proxy
+    url: http://influxdb-demo:8181
+    database: ecommerce
+    isDefault: true
+    jsonData:
+      version: InfluxQL
+      httpMode: GET

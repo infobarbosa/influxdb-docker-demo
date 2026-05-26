@@ -1,27 +1,26 @@
 services:
   influxdb:
-    image: influxdb:latest
+    image: influxdb:3-core
     container_name: influxdb-demo
-    environment:
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=barbosa
-      - DOCKER_INFLUXDB_INIT_PASSWORD=mudar123
-      - DOCKER_INFLUXDB_INIT_ORG=infobarbosa
-      - DOCKER_INFLUXDB_INIT_BUCKET=ecommerce
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==
+    command: serve --node-id demo --object-store file --data-dir /var/lib/influxdb3 --without-auth
     ports:
-      - "8086:8086"
+      - "8181:8181"
+    volumes:
+      - influxdb3-data:/var/lib/influxdb3
+
   influxproducer:
-    image: "infobarbosa/influxproducer"
+    image: alpine/curl
     container_name: influxproducer
     environment:
-      - INFLUXDB_HOST=influxdb-demo
-      - INFLUXDB_URL=http://influxdb-demo:8086
-      - INFLUXDB_TOKEN=3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw==
-      - INFLUXDB_ORG=infobarbosa
-      - INFLUXDB_BUCKET=ecommerce
+      - INFLUXDB_URL=http://influxdb-demo:8181
+      - DATABASE=ecommerce
+    volumes:
+      - ./pedidos.sh:/pedidos.sh:ro
+    command: ["/bin/sh", "/pedidos.sh"]
     depends_on:
       - influxdb
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -30,10 +29,10 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana-datasource.yaml:/etc/grafana/provisioning/datasources/influxdb.yaml:ro
     depends_on:
       - influxdb
-    links:
-      - influxdb
 
-
-
+volumes:
+  influxdb3-data:
