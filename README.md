@@ -92,11 +92,12 @@ Por simplicidade, vamos utilizar o InfluxDB em um container baseado em *Docker*.
 ```bash
 wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/compose.yaml
 wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/pedidos.sh
+wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/grafana-datasource.yaml
 
 ```
 
 ```
-ls -la compose.yaml pedidos.sh
+ls -la compose.yaml pedidos.sh grafana-datasource.yaml
 
 ```
 
@@ -416,17 +417,11 @@ O Grafana é uma plataforma open source de visualização amplamente usada para 
 - Abra o navegador e acesse `localhost:3000` (ou substitua `localhost` pelo endereço do ambiente Cloud9).
 - Usuário: `admin` | Senha: `admin`.
 
-### Configurando o InfluxDB 3 como fonte de dados
+### Datasource já configurado
 
-1. No menu lateral, vá em **Connections > Data Sources > Add data source**.
-2. Escolha **InfluxDB**.
-3. Preencha os campos:
-   - **Query Language**: `InfluxQL`
-   - **URL**: `http://influxdb-demo:8181`
-   - **Database**: `ecommerce`
-4. Clique em **Save & Test**.
+O datasource do InfluxDB já está configurado automaticamente via provisionamento — o arquivo `grafana-datasource.yaml` é lido pelo Grafana na inicialização. Não é necessário nenhuma configuração manual na interface.
 
-> **Nota:** Use **InfluxQL** (não SQL) na configuração do Grafana. O modo SQL usa Flight SQL (gRPC) que requer TLS; o modo InfluxQL usa HTTP puro e funciona sem configuração adicional. As consultas no terminal continuam sendo SQL padrão — o InfluxQL é usado apenas aqui, para a visualização.
+Para confirmar, acesse **Connections > Data Sources** e você verá o datasource **influxdb** já listado e funcional.
 
 ### Criando um painel simples
 

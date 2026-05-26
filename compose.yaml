@@ -29,6 +29,8 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana-datasource.yaml:/etc/grafana/provisioning/datasources/influxdb.yaml:ro
     depends_on:
       - influxdb
 
