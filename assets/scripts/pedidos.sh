@@ -19,7 +19,7 @@ while true; do
     quantidade=$(( (RANDOM % 5) + 1 ))
     preco=$(( (RANDOM % 5000) + 500 ))
 
-    curl -sf -XPOST "${INFLUXDB_URL}/api/v2/write?bucket=${DATABASE}&precision=s" \
+    curl -sf -XPOST "${INFLUXDB_URL}/api/v3/write_lp?db=${DATABASE}&precision=s" \
         --data-binary "pedidos,produto=${produto},pais=${pais} quantidade=${quantidade},preco=${preco}" || true
 
     sleep 1

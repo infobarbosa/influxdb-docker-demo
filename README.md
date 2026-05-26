@@ -346,12 +346,12 @@ docker exec -it influxdb-demo influxdb3 query \
 ## HTTP API
 <br>
 
-O InfluxDB 3 mantém compatibilidade com a API de escrita do InfluxDB 2 (`/api/v2/write`) e adiciona o endpoint SQL (`/api/v3/query_sql`).
+O InfluxDB 3 disponibiliza os endpoints `/api/v3/write_lp` (escrita) e `/api/v3/query_sql` (consulta SQL).
 
 ### Escrita
 
 ```bash
-curl -XPOST "http://$(hostname):8181/api/v2/write?bucket=ecommerce&precision=s" \
+curl -XPOST "http://$(hostname):8181/api/v3/write_lp?db=ecommerce&precision=s" \
   --header "Content-Type: text/plain; charset=utf-8" \
   --data-raw 'pedidos,produto=SANDUICHEIRA,pais=BR quantidade=1,preco=200'
 ```
