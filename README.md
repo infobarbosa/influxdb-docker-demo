@@ -73,7 +73,7 @@ Output esperado:
 ```
 ### Atualizando o sistema ###
 ...
-Acesse o ambiente Cloud9 em: http://ec2-34-238-49-243.compute-1.amazonaws.com:8086
+Acesse o ambiente Cloud9 em: http://ec2-34-238-49-243.compute-1.amazonaws.com:8181
 
 ```
 
@@ -106,7 +106,7 @@ docker compose up -d
 ```
 
 Este comando inicializa três serviços:
-- **`influxdb`**: o banco de dados InfluxDB 3, acessível na porta `8086`.
+- **`influxdb`**: o banco de dados InfluxDB 3, acessível na porta `8181`.
 - **`influxproducer`**: produtor de dados que insere pedidos simulados continuamente no banco `ecommerce`, permitindo visualizar dados em tempo real.
 - **`grafana`**: plataforma de visualização de dashboards, acessível na porta `3000`. Explorada na seção bônus ao final do laboratório.
 
@@ -351,7 +351,7 @@ O InfluxDB 3 mantém compatibilidade com a API de escrita do InfluxDB 2 (`/api/v
 ### Escrita
 
 ```bash
-curl -XPOST "http://$(hostname):8086/api/v2/write?bucket=ecommerce&precision=s" \
+curl -XPOST "http://$(hostname):8181/api/v2/write?bucket=ecommerce&precision=s" \
   --header "Content-Type: text/plain; charset=utf-8" \
   --data-raw 'pedidos,produto=SANDUICHEIRA,pais=BR quantidade=1,preco=200'
 ```
@@ -359,7 +359,7 @@ curl -XPOST "http://$(hostname):8086/api/v2/write?bucket=ecommerce&precision=s" 
 ### Consulta SQL via HTTP
 
 ```bash
-curl -G "http://$(hostname):8086/api/v3/query_sql" \
+curl -G "http://$(hostname):8181/api/v3/query_sql" \
   --data-urlencode "db=ecommerce" \
   --data-urlencode "q=SELECT * FROM pedidos ORDER BY time DESC LIMIT 10"
 ```
@@ -367,7 +367,7 @@ curl -G "http://$(hostname):8086/api/v3/query_sql" \
 Ou via POST com JSON:
 
 ```bash
-curl -XPOST "http://$(hostname):8086/api/v3/query_sql" \
+curl -XPOST "http://$(hostname):8181/api/v3/query_sql" \
   --header "Content-Type: application/json" \
   --data '{"db": "ecommerce", "q": "SELECT produto, SUM(quantidade) AS total FROM pedidos GROUP BY produto"}'
 ```
@@ -380,7 +380,7 @@ O InfluxDB 3 disponibiliza uma interface web de exploração de dados.
 
 ### Acessando a InfluxDB UI
 
-- Abra o navegador e acesse `localhost:8086` (ou o endereço do ambiente Cloud9).
+- Abra o navegador e acesse `localhost:8181` (ou o endereço do ambiente Cloud9).
 - A interface não exige login (laboratório sem autenticação).
 
 ### Data Explorer
