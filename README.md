@@ -88,14 +88,15 @@ echo "DNS público: $CLOUD9_EC2_PUBLIC_DNS"
 ### 3. Docker Compose
 
 Por simplicidade, vamos utilizar o InfluxDB em um container baseado em *Docker*.<br>
-#### Baixe o script `compose.yaml`
+#### Baixe os arquivos necessários
 ```bash
 wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/compose.yaml
+wget https://raw.githubusercontent.com/infobarbosa/influxdb-docker-demo/main/pedidos.sh
 
 ```
 
 ```
-ls -la compose.yaml
+ls -la compose.yaml pedidos.sh
 
 ```
 

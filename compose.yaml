@@ -15,7 +15,7 @@ services:
       - INFLUXDB_URL=http://influxdb-demo:8181
       - DATABASE=ecommerce
     volumes:
-      - ./assets/scripts/pedidos.sh:/pedidos.sh:ro
+      - ./pedidos.sh:/pedidos.sh:ro
     command: ["/bin/sh", "/pedidos.sh"]
     depends_on:
       - influxdb
