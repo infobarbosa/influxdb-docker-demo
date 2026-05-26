@@ -421,7 +421,7 @@ O Grafana é uma plataforma open source de visualização amplamente usada para 
 2. Escolha **InfluxDB**.
 3. Preencha os campos:
    - **Query Language**: `SQL`
-   - **URL**: `http://influxdb-demo:8086`
+   - **URL**: `http://influxdb-demo:8181`
    - **Database**: `ecommerce`
 4. Clique em **Save & Test**.
 

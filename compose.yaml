@@ -2,9 +2,9 @@ services:
   influxdb:
     image: influxdb:3-core
     container_name: influxdb-demo
-    command: serve --object-store file --data-dir /var/lib/influxdb3 --without-auth
+    command: serve --node-id demo --object-store file --data-dir /var/lib/influxdb3 --without-auth
     ports:
-      - "8086:8086"
+      - "8086:8181"
     volumes:
       - influxdb3-data:/var/lib/influxdb3
 
@@ -12,7 +12,7 @@ services:
     image: alpine/curl
     container_name: influxproducer
     environment:
-      - INFLUXDB_URL=http://influxdb-demo:8086
+      - INFLUXDB_URL=http://influxdb-demo:8181
       - DATABASE=ecommerce
     volumes:
       - ./assets/scripts/pedidos.sh:/pedidos.sh:ro
