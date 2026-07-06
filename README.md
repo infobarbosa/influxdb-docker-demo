@@ -439,23 +439,25 @@ docker exec influxdb-demo sh -c 'find /var/lib/influxdb3 -name "*.parquet"'
 
 ```
 
-Repare no padrão do caminho — é assim que o InfluxDB 3 **particiona** os dados fisicamente:
+Repare que aparecem **vários arquivos**, e no padrão do caminho — é assim que o InfluxDB 3 **particiona** os dados fisicamente, por **data**:
 
 ```
 dbs/<database>/<tabela>/<data>/<hora-minuto>/<arquivo>.parquet
 ```
 
-#### 9.3. Copiando um Parquet para fora do container
+> 🔎 Se você executou os Exemplos 1 e 3 (com timestamp de **2022**), vai notar uma partição `.../2022-11-14/...` **separada** das partições de hoje. Cada partição vira um ou mais arquivos Parquet independentes. Guarde essa ideia: **os dados estão espalhados em muitos arquivos**, não em um só.
 
-Vamos pegar um arquivo e trazê-lo para a máquina host:
+#### 9.3. Copiando os arquivos para fora do container
+
+Como os dados estão **espalhados em vários arquivos** (um ou mais por partição de data), não faz sentido copiar só um — vamos trazer a **árvore inteira** `dbs/` para a máquina host:
 
 ```bash
-# pega o caminho do primeiro arquivo Parquet e copia para ./pedido.parquet
-PARQUET=$(docker exec influxdb-demo sh -c 'find /var/lib/influxdb3 -name "*.parquet" | head -1')
-docker cp "influxdb-demo:${PARQUET}" ./pedido.parquet
-ls -lh pedido.parquet
+docker cp influxdb-demo:/var/lib/influxdb3/demo/dbs ./dbs
+find dbs -name '*.parquet'
 
 ```
+
+> ⚠️ **Não use `find ... | head -1`** para escolher "um arquivo". Ele pega o **primeiro** da lista, que costuma ser justamente a partição de **2022** — um arquivo com **uma única linha** (o data point do Exemplo 1). Você teria a falsa impressão de que "cada Parquet tem só um registro". A forma correta é ler **todos os arquivos de uma vez** com um *glob* recursivo, como faremos a seguir.
 
 #### 9.4. Instalando o DuckDB
 
@@ -470,30 +472,50 @@ curl https://install.duckdb.org | sh
 >
 > **Alternativas:** `parquet-tools` (Python: `pip install parquet-tools`) ou `pqrs` (CLI em Rust) também inspecionam Parquet, mas o DuckDB permite rodar SQL diretamente.
 
-#### 9.5. Lendo os dados sem o InfluxDB
+#### 9.5. Lendo TODOS os dados sem o InfluxDB
+
+O `**` faz o DuckDB varrer o diretório **recursivamente**, lendo todos os Parquet de todas as partições de uma vez — exatamente como uma engine de data lake faria:
 
 ```bash
-duckdb -c "SELECT * FROM read_parquet('pedido.parquet') ORDER BY time DESC LIMIT 10;"
+duckdb -c "SELECT COUNT(*) AS total, MIN(time) AS mais_antigo, MAX(time) AS mais_recente
+           FROM read_parquet('dbs/**/*.parquet');"
 
 ```
 
-O DuckDB lê o arquivo diretamente — **o InfluxDB nem precisa estar rodando**. Isso ilustra o valor de um formato aberto: seus dados não ficam presos ao banco.
+Note que aparece de tudo — inclusive o ponto de **2022** convivendo com os dados de hoje. O DuckDB lê os arquivos diretamente: **o InfluxDB nem precisa estar rodando**. Isso ilustra o valor de um formato aberto — seus dados não ficam presos ao banco.
+
+```bash
+duckdb -c "SELECT * FROM read_parquet('dbs/**/*.parquet') ORDER BY time DESC LIMIT 10;"
+
+```
+
+Agora dá para entender por que "pegar um arquivo só" engana. Veja **quantas linhas há em cada arquivo**:
+
+```bash
+duckdb -c "SELECT regexp_replace(file_name, '.*/dbs/', '') AS arquivo, num_rows
+           FROM parquet_file_metadata('dbs/**/*.parquet')
+           ORDER BY arquivo;"
+
+```
+
+Você verá o arquivo da partição de **2022 com apenas 1 linha**, e os arquivos de hoje com dezenas de linhas cada. Cada arquivo cobre uma **partição de tempo** (data/janela). Muitos arquivos pequenos são o efeito do nosso ajuste didático (`WAL_SNAPSHOT_SIZE=10`); em produção, o *compactor* do InfluxDB Enterprise junta esses arquivinhos em blocos maiores — o clássico problema dos *"small files"*.
 
 #### 9.6. O schema colunar e tipado
 
 ```bash
-duckdb -c "DESCRIBE SELECT * FROM read_parquet('pedido.parquet');"
+duckdb -c "DESCRIBE SELECT * FROM read_parquet('dbs/**/*.parquet');"
 
 ```
 
-Note que cada tag (`produto`, `pais`) e cada field (`quantidade`, `preco`) virou uma **coluna tipada**, e o `time` é um `TIMESTAMP_NS`. Compare com o schema físico do Parquet:
+Note que cada tag (`produto`, `pais`) e cada field (`quantidade`, `preco`) virou uma **coluna tipada**, e o `time` é um `TIMESTAMP_NS`. Compare com o schema físico do Parquet (escolhemos um arquivo qualquer para inspecionar a estrutura interna):
 
 ```bash
-duckdb -c "SELECT name, type, logical_type, repetition_type FROM parquet_schema('pedido.parquet');"
+duckdb -c "SELECT DISTINCT name, type, logical_type, repetition_type
+           FROM parquet_schema('dbs/**/*.parquet');"
 
 ```
 
-Você verá as tags como `BYTE_ARRAY` com `StringType()` e o `time` como `INT64` com `TimestampType(... NANOS ...)` — além de uma chave `arrow_schema`, que é o schema Apache Arrow embutido no arquivo.
+Você verá as tags como `BYTE_ARRAY` com `StringType()` e o `time` como `INT64` com `TimestampType(... NANOS ...)` — além de uma chave `arrow_schema`, que é o schema Apache Arrow embutido em cada arquivo.
 
 #### 9.7. Compressão e *encoding* — o coração do colunar
 
@@ -503,46 +525,43 @@ Aqui está o conceito de bancos colunares em ação. Cada coluna é comprimida *
 duckdb -c "
 SELECT
   path_in_schema AS coluna,
-  type,
-  compression,
-  encodings,
-  total_uncompressed_size AS bruto,
-  total_compressed_size   AS comprimido
-FROM parquet_metadata('pedido.parquet');"
+  any_value(compression) AS compressao,
+  any_value(encodings)   AS encodings,
+  SUM(total_uncompressed_size) AS bruto,
+  SUM(total_compressed_size)   AS comprimido
+FROM parquet_metadata('dbs/**/*.parquet')
+GROUP BY coluna;"
 
 ```
 
 Observe:
-- **`compression = ZSTD`** em todas as colunas.
+- **`compressao = ZSTD`** em todas as colunas.
 - **`RLE_DICTIONARY`** (dictionary encoding) nas tags `produto` e `pais`: como elas têm **poucos valores distintos** (baixa cardinalidade), o Parquet guarda um dicionário e substitui cada valor por um pequeno índice inteiro. É por isso que, em séries temporais, **tags de baixa cardinalidade comprimem muito bem** — e por que alta cardinalidade dói.
-- Colunas como `preco` e `time` mostram `bruto` bem maior que `comprimido`.
+- **Compressão só compensa com volume.** Com os pouquíssimos dados deste laboratório, `comprimido` pode até ficar **maior** que `bruto` em algumas colunas — é o custo fixo (overhead) do ZSTD e dos dicionários em páginas minúsculas. Deixe o produtor rodar por alguns minutos, repita a consulta, e observe a razão `comprimido/bruto` **cair** conforme o volume cresce. Esse é justamente o regime em que o formato colunar brilha.
 
-Uma visão geral do arquivo:
+Uma visão geral, arquivo a arquivo (linhas e *row groups*):
 
 ```bash
-duckdb -c "SELECT num_rows, num_row_groups, format_version FROM parquet_file_metadata('pedido.parquet');"
+duckdb -c "SELECT regexp_replace(file_name, '.*/dbs/', '') AS arquivo, num_rows, num_row_groups
+           FROM parquet_file_metadata('dbs/**/*.parquet')
+           ORDER BY arquivo;"
 
 ```
 
 #### 9.8. Rodando análises direto no Parquet
 
-Como é SQL, dá para agregar sem o InfluxDB:
+Como é SQL, dá para agregar sobre **todos os arquivos** sem o InfluxDB:
 
 ```bash
 duckdb -c "
 SELECT produto, COUNT(*) AS n, SUM(quantidade) AS total, ROUND(AVG(preco),2) AS preco_medio
-FROM read_parquet('pedido.parquet')
+FROM read_parquet('dbs/**/*.parquet')
 GROUP BY produto
 ORDER BY total DESC;"
 
 ```
 
-E dá para ler **vários arquivos de uma vez** com *glob* — exatamente como uma engine de data lake faria (copie mais arquivos, ou use o diretório montado):
-
-```bash
-duckdb -c "SELECT COUNT(*) FROM read_parquet('*.parquet');"
-
-```
+> 💡 **Desafio (para casa):** compare o tamanho de um data point em **Line Protocol** (texto, ~60 bytes) com o custo por linha no Parquet comprimido (`SUM(total_compressed_size) / SUM(num_rows)`). Discuta por que o formato colunar comprimido é a base de praticamente todos os motores analíticos modernos (InfluxDB 3, ClickHouse, DuckDB, Spark, BigQuery...).
 
 > 💡 **Desafio (para casa):** compare o tamanho de um data point em **Line Protocol** (texto, ~60 bytes) com o custo por linha no Parquet comprimido (`total_compressed_size / num_rows`). Discuta por que o formato colunar comprimido é a base de praticamente todos os motores analíticos modernos (InfluxDB 3, ClickHouse, DuckDB, Spark, BigQuery...).
 
