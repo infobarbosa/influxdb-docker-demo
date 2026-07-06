@@ -3,9 +3,12 @@ datasources:
   - name: influxdb
     type: influxdb
     access: proxy
+    # No InfluxDB 3, o SQL trafega por Arrow Flight (gRPC), multiplexado na
+    # mesma porta 8181 do servidor. O datasource oficial fala FlightSQL.
     url: http://influxdb-demo:8181
-    database: ecommerce
-    isDefault: true
     jsonData:
-      version: InfluxQL
-      httpMode: GET
+      version: SQL
+      dbName: ecommerce
+      # Ambiente do laboratório: servidor sem TLS (gRPC "inseguro").
+      insecureGrpc: true
+    isDefault: true

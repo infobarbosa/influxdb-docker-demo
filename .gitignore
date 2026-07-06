@@ -1,1 +1,10 @@
 nohup.out
+
+# Segredos e certificados não devem ser versionados
+*.key
+*.crt
+*.pem
+
+# Artefatos locais gerados no hands-on de storage (Parquet/DuckDB)
+*.parquet
+*.duckdb

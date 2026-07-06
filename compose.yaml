@@ -3,6 +3,19 @@ services:
     image: influxdb:3-core
     container_name: influxdb-demo
     command: serve --node-id demo --object-store file --data-dir /var/lib/influxdb3 --without-auth
+    environment:
+      # A imagem oficial define a env var legada LOG_FILTER, que faz o binário
+      # influxdb3 emitir um WARN de "deprecated" em todo `docker exec`. A linha
+      # abaixo (chave sem valor) REMOVE a var herdada da imagem; a seguinte define
+      # o nome atual. Assim, tanto os logs do servidor quanto os comandos ficam limpos.
+      - LOG_FILTER
+      - INFLUXDB3_LOG_FILTER=info
+      # Didático: força a persistência WAL -> Parquet rapidamente (a cada 10 arquivos
+      # de WAL, ~10s) para que a Seção 9 (storage Parquet/Arrow) tenha arquivos para
+      # inspecionar sem esperar a janela padrão (600 arquivos / ~10 min).
+      # NÃO use estes valores em produção — geram muitos arquivos pequenos.
+      - INFLUXDB3_WAL_SNAPSHOT_SIZE=10
+      - INFLUXDB3_GEN1_DURATION=1m
     ports:
       - "8181:8181"
     volumes:

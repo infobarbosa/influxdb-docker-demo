@@ -1,47 +1,46 @@
-from influxdb_client import InfluxDBClient
+"""
+Sumariza pedidos por minuto (últimos 30 minutos), agrupando por país.
 
-# Configurações do InfluxDB
-url = "http://localhost:8086"
-token = "3y1c3NnlmA1kA061YlROSO0gE5a1ppH_1Ig5HSMCsCX3VKF6zkrBwAtC-Hr6c_TTU8B9kwYOPphDq6hwyw5tLw=="
-org = "infobarbosa"
-bucket = "ecommerce"
+Versão InfluxDB 3: consulta em SQL padrão (DataFusion) via /api/v3/query_sql.
+Substitui a versão antiga em Flux (aggregateWindow) do InfluxDB 2.x.
+A função date_bin() é o equivalente SQL ao aggregateWindow do Flux.
 
-# Criar o cliente do InfluxDB
-client = InfluxDBClient(url=url, token=token, org=org)
+Uso:
+    export INFLUXDB_URL=http://localhost:8181   # opcional
+    export INFLUXDB_DATABASE=ecommerce          # opcional
+    python3 pais_por_minuto.py
+"""
+import os
 
-# Consulta para sumarizar pedidos por minuto nos últimos 30 minutos, agrupando por departamento
-query = f'''
-from(bucket: "{bucket}")
-  |> range(start: -30m)
-  |> filter(fn: (r) => r._measurement == "pedidos")
-  |> filter(fn: (r) => r._field == "quantidade")
-  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)
-  |> group(columns: ["_time", "pais"])
-  |> yield(name: "sum")
-'''
-
-# Executar a consulta
-query_api = client.query_api()
-result = query_api.query(query)
-print(type(result))
-
-print("---")
-
-# Processar os resultados
-summary = []
-for table in result:
-    for record in table.records:
-        summary.append({
-            "time": record.get_time(),
-            "pais": record.values.get("pais"),
-            "quantidade": record.get_value(),
-        })
-
-# Exibir a sumarização
 import pandas as pd
+import requests
 
-df = pd.DataFrame(summary)
+INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://localhost:8181")
+DATABASE = os.getenv("INFLUXDB_DATABASE", "ecommerce")
+TOKEN = os.getenv("INFLUXDB_TOKEN")  # opcional; None em ambiente --without-auth
+
+sql = """
+SELECT
+  date_bin(INTERVAL '1 minute', time) AS minuto,
+  pais,
+  SUM(quantidade) AS quantidade
+FROM pedidos
+WHERE time >= now() - INTERVAL '30 minutes'
+GROUP BY minuto, pais
+ORDER BY minuto, pais
+"""
+
+headers = {}
+if TOKEN:
+    headers["Authorization"] = f"Bearer {TOKEN}"
+
+resp = requests.get(
+    f"{INFLUXDB_URL}/api/v3/query_sql",
+    params={"db": DATABASE, "q": sql, "format": "json"},
+    headers=headers,
+    timeout=30,
+)
+resp.raise_for_status()
+
+df = pd.DataFrame(resp.json())
 print(df)
-
-# Fechar o cliente
-client.close()

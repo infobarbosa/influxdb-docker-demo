@@ -11,6 +11,25 @@ O objetivo deste laboratório é oferecer ao aluno um ambiente de familiarizaç�
 [InfluxDB](https://docs.influxdata.com/influxdb3/core/) é um banco de dados de série temporal desenvolvido pela InfluxData. A versão 3 traz suporte nativo a **SQL**, tornando as consultas mais acessíveis a quem já conhece bancos de dados relacionais.<br>
 > Fonte: [Wikipedia](https://en.wikipedia.org/wiki/InfluxDB)
 
+### O motor do InfluxDB 3 (por que ele é diferente)
+
+O InfluxDB 3 foi **reescrito em Rust** sobre o chamado *stack FDAP*, todo baseado em projetos Apache:
+
+- **F**light — [Apache Arrow Flight](https://arrow.apache.org/docs/format/Flight.html): transporte de dados colunar de alta performance (usado, por exemplo, pelo Grafana para falar SQL com o banco).
+- **D**ataFusion — [Apache DataFusion](https://datafusion.apache.org/): o motor de consulta SQL.
+- **A**rrow — [Apache Arrow](https://arrow.apache.org/): o formato colunar **em memória**.
+- **P**arquet — [Apache Parquet](https://parquet.apache.org/): o formato colunar **em disco**.
+
+Na prática, isso significa que os seus dados são armazenados **exatamente no mesmo formato** (Parquet) que você encontraria em um data lake — e é por isso que, ao final deste laboratório, conseguiremos abrir os arquivos internos do banco com ferramentas de análise como o **DuckDB** ([Seção 9](#9-por-dentro-do-armazenamento-parquet--arrow-hands-on)).
+
+### Core × Enterprise (importante para este laboratório)
+
+Este laboratório usa a imagem gratuita e open source **InfluxDB 3 Core** (`influxdb:3-core`). Vale conhecer o principal limite dela:
+
+> ⚠️ **Janela de consulta de ~72 horas.** O InfluxDB 3 **Core** foi otimizado para dados recentes: por padrão, uma consulta só enxerga aproximadamente as **últimas 72 horas** de dados (o planner limita o plano a ~432 arquivos Parquet de blocos de 10 min). Você **pode escrever** dados com qualquer timestamp histórico, mas **não conseguirá consultá-los** se estiverem fora dessa janela. O **InfluxDB 3 Enterprise** inclui um *compactor* que reorganiza os arquivos e **remove esse limite**, permitindo consultas sobre qualquer intervalo histórico.
+>
+> Isso explica um comportamento que veremos adiante: os data points de exemplo com timestamp de **2022** são aceitos na escrita, mas **não aparecem** nas consultas.
+
 ## Line Protocol
 <br>
 O protocolo de linha (line protocol) do InfluxDB é um formato simples baseado em texto adotado para escrita de data points no banco de dados.
@@ -39,6 +58,21 @@ Onde:
 
 - `[<timestamp>]` é expresso em nanossegundos e não obrigatório.<br>
     > Caso não informado, o InfluxDB utiliza o timestamp interno do servidor.
+
+### Tags × Fields — o conceito mais importante
+
+A distinção entre **tags** e **fields** é central em bancos de séries temporais e determina o desempenho das consultas:
+
+| | **Tags** | **Fields** |
+|---|---|---|
+| Tipo | sempre `string` | `Float`, `Integer`, `UInteger`, `String`, `Boolean` |
+| Papel | **identificam a série** (metadados / dimensões) | **as medições** (os valores que variam no tempo) |
+| Uso típico | `WHERE`, `GROUP BY` | `SELECT`, agregações (`SUM`, `AVG`...) |
+| Exemplo no lab | `produto`, `pais` | `quantidade`, `preco` |
+
+> **Cardinalidade** é o número de combinações distintas de séries (measurement + conjunto de tags). Tags com muitos valores possíveis (ex.: `id_do_pedido`, IP, e-mail) causam **alta cardinalidade** — historicamente o principal gargalo de séries temporais. Regra prática: use como tag apenas o que você vai **filtrar/agrupar**; o resto é field.
+
+> **No InfluxDB 3 isso mudou de fundo.** O armazenamento agora é **colunar (Apache Arrow em memória, Apache Parquet em disco)**. A separação tag/field continua no Line Protocol, mas fisicamente cada tag e cada field vira uma **coluna** tipada e comprimida. Por isso o v3 tolera cardinalidade muito melhor que o v1/v2 e permite **SQL padrão** sobre os dados. Vamos ver esses arquivos Parquet na [Seção 9](#9-por-dentro-do-armazenamento-parquet--arrow-hands-on).
 
 **Exemplo**:
 ```
@@ -230,6 +264,8 @@ docker exec -it influxdb-demo influxdb3 query \
 
 ```
 
+> ⚠️ **Resultado esperado no Core: vazio.** Mesmo tendo inserido os pedidos de 2022 nos Exemplos 1 e 3 (a **escrita** foi aceita), esta consulta cai fora da **janela de ~72h do InfluxDB 3 Core** e não retorna linhas. Reveja a nota [Core × Enterprise](#core--enterprise-importante-para-este-laboratório). Este é um dos conceitos mais importantes do laboratório: **escrever ≠ conseguir consultar** no Core.
+
 ---
 
 #### Exemplo 8 — Últimos 2 minutos
@@ -345,6 +381,190 @@ docker exec -it influxdb-demo influxdb3 query \
 
 ---
 
+#### Exemplo 15 — Janela de tempo fixa (ponto absoluto no tempo)
+
+Até aqui filtramos com `now() - INTERVAL '...'` (janela **relativa**, que "anda" com o relógio). Muitas análises, porém, precisam de um intervalo **absoluto** — por exemplo, "o que foi vendido **das 18h às 19h**". Basta informar os instantes de início e fim na cláusula `WHERE`.
+
+```bash
+docker exec -it influxdb-demo influxdb3 query \
+  --database ecommerce \
+  "SELECT
+     date_bin(INTERVAL '10 minutes', time) AS janela,
+     produto,
+     SUM(quantidade) AS total_vendas
+   FROM pedidos
+   WHERE time >= '2026-07-06T18:00:00-03:00'
+     AND time <  '2026-07-06T19:00:00-03:00'
+   GROUP BY janela, produto
+   ORDER BY janela"
+
+```
+
+> ⏰ **Fuso horário (leia com atenção).** A coluna `time` é **sempre armazenada em UTC**. No exemplo acima usamos o sufixo `-03:00` para dizer "18h no horário de Brasília" — o InfluxDB converte para UTC automaticamente (18h em Brasília = 21h UTC). Se preferir raciocinar direto em UTC, use o sufixo `Z`: `'2026-07-06T21:00:00Z'`. Ajuste a **data** (`2026-07-06`) para o dia em que você gerou os dados.
+
+> ⚠️ **Lembrete do Core:** a janela escolhida precisa estar dentro das **últimas ~72h** para retornar resultados (veja [Core × Enterprise](#core--enterprise-importante-para-este-laboratório)).
+
+---
+
+### 9. Por dentro do armazenamento: Parquet + Arrow (hands-on)
+
+Até aqui usamos o InfluxDB como uma "caixa preta". Nesta seção vamos **abrir a caixa** e olhar como os dados ficam gravados em disco — e a boa notícia é que eles estão em **Apache Parquet**, o mesmo formato colunar dos data lakes. Vamos inclusive ler esses arquivos com o **DuckDB**, sem passar pelo InfluxDB.
+
+#### 9.1. O caminho do dado: WAL → Parquet
+
+Quando você escreve um data point, ele **não** vai direto para um arquivo Parquet. O fluxo é:
+
+1. **WAL** (*Write-Ahead Log*): gravação imediata e sequencial, para durabilidade e recuperação de falhas.
+2. **Buffer em memória**: os dados ficam em **Apache Arrow** (colunar, em RAM) e já podem ser consultados.
+3. **Persistência (snapshot)**: periodicamente o buffer é escrito como **arquivos Parquet** imutáveis no *object store* (aqui, o disco local).
+
+> 🧪 **Ajuste didático deste laboratório.** Por padrão, o Core só gera Parquet após acumular **600 arquivos de WAL** (~10 min). Para não esperarmos, o `compose.yaml` define `INFLUXDB3_WAL_SNAPSHOT_SIZE=10` e `INFLUXDB3_GEN1_DURATION=1m`, fazendo o Parquet aparecer em segundos. **Nunca use esses valores em produção** — eles geram muitos arquivos pequenos.
+
+Espere ~30 segundos após o `docker compose up` e explore a árvore de arquivos do banco:
+
+```bash
+docker exec influxdb-demo find /var/lib/influxdb3 -maxdepth 3 -type d
+
+```
+
+Você verá três diretórios importantes dentro de `/var/lib/influxdb3/demo/` (`demo` é o `--node-id`):
+- **`wal/`** — os arquivos `.wal` (log de escrita).
+- **`catalog/`** — os metadados (bancos, tabelas, colunas, localização dos arquivos).
+- **`dbs/`** — os **arquivos Parquet** com os dados de fato.
+
+#### 9.2. Localizando os arquivos Parquet
+
+```bash
+docker exec influxdb-demo sh -c 'find /var/lib/influxdb3 -name "*.parquet"'
+
+```
+
+Repare que aparecem **vários arquivos**, e no padrão do caminho — é assim que o InfluxDB 3 **particiona** os dados fisicamente, por **data**:
+
+```
+dbs/<database>/<tabela>/<data>/<hora-minuto>/<arquivo>.parquet
+```
+
+> 🔎 Se você executou os Exemplos 1 e 3 (com timestamp de **2022**), vai notar uma partição `.../2022-11-14/...` **separada** das partições de hoje. Cada partição vira um ou mais arquivos Parquet independentes. Guarde essa ideia: **os dados estão espalhados em muitos arquivos**, não em um só.
+
+#### 9.3. Copiando os arquivos para fora do container
+
+Como os dados estão **espalhados em vários arquivos** (um ou mais por partição de data), não faz sentido copiar só um — vamos trazer a **árvore inteira** `dbs/` para a máquina host:
+
+```bash
+docker cp influxdb-demo:/var/lib/influxdb3/demo/dbs ./dbs
+find dbs -name '*.parquet'
+
+```
+
+> ⚠️ **Não use `find ... | head -1`** para escolher "um arquivo". Ele pega o **primeiro** da lista, que costuma ser justamente a partição de **2022** — um arquivo com **uma única linha** (o data point do Exemplo 1). Você teria a falsa impressão de que "cada Parquet tem só um registro". A forma correta é ler **todos os arquivos de uma vez** com um *glob* recursivo, como faremos a seguir.
+
+#### 9.4. Instalando o DuckDB
+
+O [DuckDB](https://duckdb.org/) é um banco analítico embarcado (um único binário) que lê Parquet nativamente e roda **SQL** — perfeito para inspecionar nossos arquivos.
+
+```bash
+curl https://install.duckdb.org | sh
+
+```
+
+> O instalador cria um atalho em `~/.local/bin/duckdb`. Se o comando `duckdb` não for encontrado, use o caminho completo `~/.duckdb/cli/latest/duckdb` ou rode `export PATH="$HOME/.local/bin:$PATH"`.
+>
+> **Alternativas:** `parquet-tools` (Python: `pip install parquet-tools`) ou `pqrs` (CLI em Rust) também inspecionam Parquet, mas o DuckDB permite rodar SQL diretamente.
+
+#### 9.5. Lendo TODOS os dados sem o InfluxDB
+
+O `**` faz o DuckDB varrer o diretório **recursivamente**, lendo todos os Parquet de todas as partições de uma vez — exatamente como uma engine de data lake faria:
+
+```bash
+duckdb -c "SELECT COUNT(*) AS total, MIN(time) AS mais_antigo, MAX(time) AS mais_recente
+           FROM read_parquet('dbs/**/*.parquet');"
+
+```
+
+Note que aparece de tudo — inclusive o ponto de **2022** convivendo com os dados de hoje. O DuckDB lê os arquivos diretamente: **o InfluxDB nem precisa estar rodando**. Isso ilustra o valor de um formato aberto — seus dados não ficam presos ao banco.
+
+```bash
+duckdb -c "SELECT * FROM read_parquet('dbs/**/*.parquet') ORDER BY time DESC LIMIT 10;"
+
+```
+
+Agora dá para entender por que "pegar um arquivo só" engana. Veja **quantas linhas há em cada arquivo**:
+
+```bash
+duckdb -c "SELECT regexp_replace(file_name, '.*/dbs/', '') AS arquivo, num_rows
+           FROM parquet_file_metadata('dbs/**/*.parquet')
+           ORDER BY arquivo;"
+
+```
+
+Você verá o arquivo da partição de **2022 com apenas 1 linha**, e os arquivos de hoje com dezenas de linhas cada. Cada arquivo cobre uma **partição de tempo** (data/janela). Muitos arquivos pequenos são o efeito do nosso ajuste didático (`WAL_SNAPSHOT_SIZE=10`); em produção, o *compactor* do InfluxDB Enterprise junta esses arquivinhos em blocos maiores — o clássico problema dos *"small files"*.
+
+#### 9.6. O schema colunar e tipado
+
+```bash
+duckdb -c "DESCRIBE SELECT * FROM read_parquet('dbs/**/*.parquet');"
+
+```
+
+Note que cada tag (`produto`, `pais`) e cada field (`quantidade`, `preco`) virou uma **coluna tipada**, e o `time` é um `TIMESTAMP_NS`. Compare com o schema físico do Parquet (escolhemos um arquivo qualquer para inspecionar a estrutura interna):
+
+```bash
+duckdb -c "SELECT DISTINCT name, type, logical_type, repetition_type
+           FROM parquet_schema('dbs/**/*.parquet');"
+
+```
+
+Você verá as tags como `BYTE_ARRAY` com `StringType()` e o `time` como `INT64` com `TimestampType(... NANOS ...)` — além de uma chave `arrow_schema`, que é o schema Apache Arrow embutido em cada arquivo.
+
+#### 9.7. Compressão e *encoding* — o coração do colunar
+
+Aqui está o conceito de bancos colunares em ação. Cada coluna é comprimida **independentemente**, com o *encoding* mais adequado ao seu conteúdo:
+
+```bash
+duckdb -c "
+SELECT
+  path_in_schema AS coluna,
+  any_value(compression) AS compressao,
+  any_value(encodings)   AS encodings,
+  SUM(total_uncompressed_size) AS bruto,
+  SUM(total_compressed_size)   AS comprimido
+FROM parquet_metadata('dbs/**/*.parquet')
+GROUP BY coluna;"
+
+```
+
+Observe:
+- **`compressao = ZSTD`** em todas as colunas.
+- **`RLE_DICTIONARY`** (dictionary encoding) nas tags `produto` e `pais`: como elas têm **poucos valores distintos** (baixa cardinalidade), o Parquet guarda um dicionário e substitui cada valor por um pequeno índice inteiro. É por isso que, em séries temporais, **tags de baixa cardinalidade comprimem muito bem** — e por que alta cardinalidade dói.
+- **Compressão só compensa com volume.** Com os pouquíssimos dados deste laboratório, `comprimido` pode até ficar **maior** que `bruto` em algumas colunas — é o custo fixo (overhead) do ZSTD e dos dicionários em páginas minúsculas. Deixe o produtor rodar por alguns minutos, repita a consulta, e observe a razão `comprimido/bruto` **cair** conforme o volume cresce. Esse é justamente o regime em que o formato colunar brilha.
+
+Uma visão geral, arquivo a arquivo (linhas e *row groups*):
+
+```bash
+duckdb -c "SELECT regexp_replace(file_name, '.*/dbs/', '') AS arquivo, num_rows, num_row_groups
+           FROM parquet_file_metadata('dbs/**/*.parquet')
+           ORDER BY arquivo;"
+
+```
+
+#### 9.8. Rodando análises direto no Parquet
+
+Como é SQL, dá para agregar sobre **todos os arquivos** sem o InfluxDB:
+
+```bash
+duckdb -c "
+SELECT produto, COUNT(*) AS n, SUM(quantidade) AS total, ROUND(AVG(preco),2) AS preco_medio
+FROM read_parquet('dbs/**/*.parquet')
+GROUP BY produto
+ORDER BY total DESC;"
+
+```
+
+> 💡 **Desafio (para casa):** compare o tamanho de um data point em **Line Protocol** (texto, ~60 bytes) com o custo por linha no Parquet comprimido (`SUM(total_compressed_size) / SUM(num_rows)`). Discuta por que o formato colunar comprimido é a base de praticamente todos os motores analíticos modernos (InfluxDB 3, ClickHouse, DuckDB, Spark, BigQuery...).
+
+---
+
 ## HTTP API
 <br>
 
@@ -376,38 +596,6 @@ curl -XPOST "http://$(hostname):8181/api/v3/query_sql" \
 
 ---
 
-## InfluxDB UI
-<br>
-O InfluxDB 3 disponibiliza uma interface web de exploração de dados.
-
-### Acessando a InfluxDB UI
-
-- Abra o navegador e acesse `localhost:8181` (ou o endereço do ambiente Cloud9).
-- A interface não exige login (laboratório sem autenticação).
-
-### Data Explorer
-
-- No menu lateral, acesse **Data Explorer**.
-- Selecione o database `ecommerce`.
-- Use o editor SQL para executar consultas diretamente na interface:
-
-```sql
-SELECT *
-FROM pedidos
-WHERE time >= now() - INTERVAL '5 minutes'
-ORDER BY time DESC
-```
-
-```sql
-SELECT produto, SUM(quantidade) AS total_vendas
-FROM pedidos
-WHERE time >= now() - INTERVAL '30 minutes'
-GROUP BY produto
-ORDER BY total_vendas DESC
-```
-
----
-
 ## Bônus: Grafana
 
 O Grafana é uma plataforma open source de visualização amplamente usada para criar dashboards. Ele já está disponível como parte do ambiente deste laboratório.
@@ -417,26 +605,69 @@ O Grafana é uma plataforma open source de visualização amplamente usada para 
 - Abra o navegador e acesse `localhost:3000` (ou substitua `localhost` pelo endereço do ambiente Cloud9).
 - Usuário: `admin` | Senha: `admin`.
 
-### Datasource já configurado
+### Datasource já configurado (SQL via FlightSQL)
 
 O datasource do InfluxDB já está configurado automaticamente via provisionamento — o arquivo `grafana-datasource.yaml` é lido pelo Grafana na inicialização. Não é necessário nenhuma configuração manual na interface.
 
-Para confirmar, acesse **Connections > Data Sources** e você verá o datasource **influxdb** já listado e funcional.
+Ele está configurado no modo **SQL**, consistente com o restante do laboratório. Por baixo dos panos, o Grafana conversa com o InfluxDB 3 via **Arrow Flight (gRPC)** — o mesmo protocolo *FlightSQL* mencionado na [introdução](#o-motor-do-influxdb-3-por-que-ele-é-diferente) — recebendo os resultados já em formato colunar Arrow.
+
+Para confirmar, acesse **Connections > Data Sources > influxdb** e clique em **Save & test**: você verá a mensagem de sucesso.
+
+> **Curiosidade:** o InfluxDB 3 também aceita **InfluxQL** (linguagem legada do v1/v2) por compatibilidade, via `/api/v3/query_influxql`. Optamos por **SQL** aqui para manter um único dialeto no laboratório inteiro. Se um dia você vir dashboards antigos com `GROUP BY time(10s)`, isso é InfluxQL — o equivalente em SQL é o `date_bin()` que já usamos.
 
 ### Criando um painel simples
 
 1. Clique em **+** no menu lateral > **New Dashboard > Add visualization**.
-2. Selecione o data source **InfluxDB** recém-criado.
-3. No editor de query, insira:
+2. Selecione o data source **influxdb** (SQL).
+3. Certifique-se de que o editor está no modo **SQL** e insira:
 
-```
-SELECT SUM("quantidade") AS "total_vendas"
-FROM "pedidos"
-WHERE $timeFilter
-GROUP BY time(10s), "produto"
+```sql
+SELECT
+  date_bin(INTERVAL '10 seconds', time) AS janela,
+  produto,
+  SUM(quantidade) AS total_vendas
+FROM pedidos
+WHERE $__timeFilter(time)
+GROUP BY janela, produto
+ORDER BY janela
 ```
 
-4. Clique em **Run Query** para visualizar o gráfico de vendas por produto em tempo real.
+> A macro `$__timeFilter(time)` é substituída pelo Grafana pelo intervalo de tempo selecionado no dashboard (canto superior direito).
+
+4. Clique em **Run query** para visualizar o gráfico de vendas por produto em tempo real.
+
+---
+
+## Referências para aprofundamento
+
+Sugestões para continuar os estudos, organizadas por tema.
+
+### InfluxDB 3
+- [Documentação oficial — InfluxDB 3 Core](https://docs.influxdata.com/influxdb3/core/) — ponto de partida.
+- [Get started with InfluxDB 3 Core](https://docs.influxdata.com/influxdb3/core/get-started/) — escrita, consulta e configuração passo a passo.
+- [Line Protocol — referência](https://docs.influxdata.com/influxdb3/core/reference/line-protocol/) — a sintaxe completa de escrita.
+- [Referência de SQL do InfluxDB 3](https://docs.influxdata.com/influxdb3/core/reference/sql/) e [de InfluxQL](https://docs.influxdata.com/influxdb3/core/reference/influxql/) — os dois dialetos suportados.
+- [CLI `influxdb3`](https://docs.influxdata.com/influxdb3/core/reference/cli/influxdb3/) — todos os subcomandos (`write`, `query`, `create`, `serve`...).
+- [Blog — InfluxDB 3.0 System Architecture](https://www.influxdata.com/blog/influxdb-3-0-system-architecture/) — como o motor funciona por dentro (ingester, compactor, catalog, object store).
+- [Diferenças entre Core e Enterprise](https://docs.influxdata.com/influxdb3/core/#core-vs-enterprise) e o [anúncio da limitação de 72h](https://www.influxdata.com/blog/influxdb3-open-source-public-alpha-jan-27/).
+
+### O stack FDAP (Apache) e formatos colunares
+- [Apache Arrow](https://arrow.apache.org/) — o formato colunar em memória.
+- [Apache Parquet](https://parquet.apache.org/docs/) — o formato colunar em disco; veja em especial *encodings* e *compression*.
+- [Apache DataFusion](https://datafusion.apache.org/) — o motor de consulta SQL em Rust usado pelo InfluxDB 3.
+- [Apache Arrow Flight & FlightSQL](https://arrow.apache.org/docs/format/FlightSql.html) — o protocolo de transporte colunar usado pelo Grafana.
+- [InfoQ — Rebuilding InfluxDB 3 in Apache Arrow and Rust](https://www.infoq.com/articles/timeseries-db-rust/) — a história técnica da reescrita.
+- [DuckDB — documentação](https://duckdb.org/docs/) e o guia [Reading and Writing Parquet](https://duckdb.org/docs/data/parquet/overview).
+
+### Séries temporais e bancos colunares (conceitos)
+- Jensen, Pedersen & Thomsen — *[Time Series Management Systems: A Survey](https://arxiv.org/abs/1710.01792)* (survey acadêmico).
+- Abadi et al. — *[The Design and Implementation of Modern Column-Oriented Database Systems](https://stratos.seas.harvard.edu/files/stratos/files/columnstoresfntdbs.pdf)* (leitura de referência sobre colunar).
+- [Awesome Time Series Database](https://github.com/xephonhq/awesome-time-series-database) — panorama de ferramentas do ecossistema.
+
+### Visualização e ecossistema
+- [Grafana — data source oficial do InfluxDB v3](https://www.influxdata.com/blog/official-influxdb-v3-data-source-grafana-released/).
+- [Grafana — documentação do data source InfluxDB](https://grafana.com/docs/grafana/latest/datasources/influxdb/).
+- [Telegraf](https://docs.influxdata.com/telegraf/) — agente de coleta de métricas, o companheiro natural do InfluxDB para ingestão em produção.
 
 ---
 
