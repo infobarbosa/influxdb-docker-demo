@@ -596,10 +596,6 @@ curl -XPOST "http://$(hostname):8181/api/v3/query_sql" \
 
 ---
 
-> ℹ️ **E a interface web nativa do InfluxDB?** A imagem `influxdb:3-core` **não inclui** uma UI embutida — a porta `8181` responde apenas à API HTTP (acessar `http://localhost:8181` no navegador retorna `404 Not found`). A exploração visual de dados fica por conta do **[InfluxDB 3 Explorer](https://github.com/influxdata/influxdb3-explorer)**, distribuído como um **container à parte** (`influxdata/influxdb3-explorer`), e do **Grafana** — que já vem pronto neste laboratório e usamos no bônus a seguir.
-
----
-
 ## Bônus: Grafana
 
 O Grafana é uma plataforma open source de visualização amplamente usada para criar dashboards. Ele já está disponível como parte do ambiente deste laboratório.
