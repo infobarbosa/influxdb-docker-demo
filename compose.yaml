@@ -3,6 +3,13 @@ services:
     image: influxdb:3-core
     container_name: influxdb-demo
     command: serve --node-id demo --object-store file --data-dir /var/lib/influxdb3 --without-auth
+    environment:
+      # Didático: força a persistência WAL -> Parquet rapidamente (a cada 10 arquivos
+      # de WAL, ~10s) para que a Seção 9 (storage Parquet/Arrow) tenha arquivos para
+      # inspecionar sem esperar a janela padrão (600 arquivos / ~10 min).
+      # NÃO use estes valores em produção — geram muitos arquivos pequenos.
+      - INFLUXDB3_WAL_SNAPSHOT_SIZE=10
+      - INFLUXDB3_GEN1_DURATION=1m
     ports:
       - "8181:8181"
     volumes:

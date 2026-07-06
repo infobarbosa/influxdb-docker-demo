@@ -16,7 +16,7 @@ echo "Instância detectada: $INSTANCE_ID na zona $INSTANCE_AZ"
 
 # --- 3. Configuração de Segurança (Firewall da Instância) ---
 echo "### Liberando portas no Security Group da Instância ###"
-aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 8086 --cidr 0.0.0.0/0 2>/dev/null
+aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 8181 --cidr 0.0.0.0/0 2>/dev/null
 aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 3000 --cidr 0.0.0.0/0 2>/dev/null
 
 # --- 4. Lógica Multi-AZ para o Load Balancer ---
@@ -30,7 +30,7 @@ export TG_NAME="tg-influx-$(date +%s)"
 export TG_ARN=$(aws elbv2 create-target-group \
     --name $TG_NAME \
     --protocol HTTP \
-    --port 8086 \
+    --port 8181 \
     --vpc-id $VPC_ID \
     --health-check-path /health \
     --target-type instance | jq -r .TargetGroups[0].TargetGroupArn)
