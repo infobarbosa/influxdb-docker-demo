@@ -563,8 +563,6 @@ ORDER BY total DESC;"
 
 > 💡 **Desafio (para casa):** compare o tamanho de um data point em **Line Protocol** (texto, ~60 bytes) com o custo por linha no Parquet comprimido (`SUM(total_compressed_size) / SUM(num_rows)`). Discuta por que o formato colunar comprimido é a base de praticamente todos os motores analíticos modernos (InfluxDB 3, ClickHouse, DuckDB, Spark, BigQuery...).
 
-> 💡 **Desafio (para casa):** compare o tamanho de um data point em **Line Protocol** (texto, ~60 bytes) com o custo por linha no Parquet comprimido (`total_compressed_size / num_rows`). Discuta por que o formato colunar comprimido é a base de praticamente todos os motores analíticos modernos (InfluxDB 3, ClickHouse, DuckDB, Spark, BigQuery...).
-
 ---
 
 ## HTTP API
@@ -598,35 +596,7 @@ curl -XPOST "http://$(hostname):8181/api/v3/query_sql" \
 
 ---
 
-## InfluxDB UI
-<br>
-O InfluxDB 3 disponibiliza uma interface web de exploração de dados.
-
-### Acessando a InfluxDB UI
-
-- Abra o navegador e acesse `localhost:8181` (ou o endereço do ambiente Cloud9).
-- A interface não exige login (laboratório sem autenticação).
-
-### Data Explorer
-
-- No menu lateral, acesse **Data Explorer**.
-- Selecione o database `ecommerce`.
-- Use o editor SQL para executar consultas diretamente na interface:
-
-```sql
-SELECT *
-FROM pedidos
-WHERE time >= now() - INTERVAL '5 minutes'
-ORDER BY time DESC
-```
-
-```sql
-SELECT produto, SUM(quantidade) AS total_vendas
-FROM pedidos
-WHERE time >= now() - INTERVAL '30 minutes'
-GROUP BY produto
-ORDER BY total_vendas DESC
-```
+> ℹ️ **E a interface web nativa do InfluxDB?** A imagem `influxdb:3-core` **não inclui** uma UI embutida — a porta `8181` responde apenas à API HTTP (acessar `http://localhost:8181` no navegador retorna `404 Not found`). A exploração visual de dados fica por conta do **[InfluxDB 3 Explorer](https://github.com/influxdata/influxdb3-explorer)**, distribuído como um **container à parte** (`influxdata/influxdb3-explorer`), e do **Grafana** — que já vem pronto neste laboratório e usamos no bônus a seguir.
 
 ---
 
