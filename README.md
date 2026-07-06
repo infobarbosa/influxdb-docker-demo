@@ -381,6 +381,31 @@ docker exec -it influxdb-demo influxdb3 query \
 
 ---
 
+#### Exemplo 15 — Janela de tempo fixa (ponto absoluto no tempo)
+
+Até aqui filtramos com `now() - INTERVAL '...'` (janela **relativa**, que "anda" com o relógio). Muitas análises, porém, precisam de um intervalo **absoluto** — por exemplo, "o que foi vendido **das 18h às 19h**". Basta informar os instantes de início e fim na cláusula `WHERE`.
+
+```bash
+docker exec -it influxdb-demo influxdb3 query \
+  --database ecommerce \
+  "SELECT
+     date_bin(INTERVAL '10 minutes', time) AS janela,
+     produto,
+     SUM(quantidade) AS total_vendas
+   FROM pedidos
+   WHERE time >= '2026-07-06T18:00:00-03:00'
+     AND time <  '2026-07-06T19:00:00-03:00'
+   GROUP BY janela, produto
+   ORDER BY janela"
+
+```
+
+> ⏰ **Fuso horário (leia com atenção).** A coluna `time` é **sempre armazenada em UTC**. No exemplo acima usamos o sufixo `-03:00` para dizer "18h no horário de Brasília" — o InfluxDB converte para UTC automaticamente (18h em Brasília = 21h UTC). Se preferir raciocinar direto em UTC, use o sufixo `Z`: `'2026-07-06T21:00:00Z'`. Ajuste a **data** (`2026-07-06`) para o dia em que você gerou os dados.
+
+> ⚠️ **Lembrete do Core:** a janela escolhida precisa estar dentro das **últimas ~72h** para retornar resultados (veja [Core × Enterprise](#core--enterprise-importante-para-este-laboratório)).
+
+---
+
 ### 9. Por dentro do armazenamento: Parquet + Arrow (hands-on)
 
 Até aqui usamos o InfluxDB como uma "caixa preta". Nesta seção vamos **abrir a caixa** e olhar como os dados ficam gravados em disco — e a boa notícia é que eles estão em **Apache Parquet**, o mesmo formato colunar dos data lakes. Vamos inclusive ler esses arquivos com o **DuckDB**, sem passar pelo InfluxDB.
