@@ -617,24 +617,65 @@ Para confirmar, acesse **Connections > Data Sources > influxdb** e clique em **S
 
 ### Criando um painel simples
 
-1. Clique em **+** no menu lateral > **New Dashboard > Add visualization**.
-2. Selecione o data source **influxdb** (SQL).
-3. Certifique-se de que o editor está no modo **SQL** e insira:
-
+1. No menu lateral esquerdo, clique em **Dashboards**.
+2. Clique em **+ Create dashboard**.
+3. No menu lateral direito, na sessão **Panel**, clique em **+**.
+4. No menu lateral direito, no campo **Title** escreva `Vendas Totais`.
+5. Para configurar o novo painel você pode
+  - a. Clicar no botão azul **Configure visualization**, ou
+  - b. Clicar no botão **Edit visualization** em cima de **Title**.
+6. A tela agora está dividida em:
+  - parte superior: o preview do painel
+  - parte inferior: duas abas **Queries** e **Transformations**
+  Mantenha a aba **Queries** ativada.
+7. Em **Data source** mantenha **influxdb**.
+8. Combo **Format**: altere para **Time series**.
+9. Ao lado direito do botão azul **Run query** clique em **code**.
+10. Copie a consulta a seguir e cole no editor de código.
 ```sql
-SELECT
-  date_bin(INTERVAL '10 seconds', time) AS janela,
-  produto,
-  SUM(quantidade) AS total_vendas
-FROM pedidos
-WHERE $__timeFilter(time)
-GROUP BY janela, produto
-ORDER BY janela
+SELECT janela AS time, produto, total_vendas
+FROM (
+  SELECT
+    date_bin(INTERVAL '10 seconds', time) AS janela,
+    produto,
+    SUM(quantidade) AS total_vendas
+  FROM pedidos
+  WHERE $__timeFilter(time)
+  GROUP BY janela, produto
+)
+ORDER BY time
 ```
+11. Clique em **Run query**.
+12. No topo à direita, abra o combo de seleção do período se selecione **Last 5 minutes**
+13. No painel de configurações à direita, role até encontrar **Connect null values** e marque a opção **Always**.
+14. Ainda no mesmo painel, role até encontrar a sessão **Standard options** e escreva 0 (zero) na caixa **No value**.
+15. No topo à direita clique em **Save**
+16. Clique em **Back to dashboard**.
 
 > A macro `$__timeFilter(time)` é substituída pelo Grafana pelo intervalo de tempo selecionado no dashboard (canto superior direito).
 
-4. Clique em **Run query** para visualizar o gráfico de vendas por produto em tempo real.
+> ⚠️ **Por que uma subquery em vez de `date_bin(...) AS time` direto?** A tabela `pedidos` já tem uma coluna nativa chamada `time`. Se o alias do `date_bin` também se chamar `time` e a mesma consulta tiver `GROUP BY time`, existe uma ambiguidade de nomes: o SQL padrão (e o DataFusion, motor do InfluxDB 3) resolve isso priorizando a **coluna de origem** sobre o **alias de saída** — ou seja, agruparia pelo timestamp bruto, em nanossegundos, o que equivale a **não agregar nada** (cada linha vira seu próprio grupo). O erro é silencioso: a consulta roda sem falhar, só devolve o dado errado.
+>
+> A subquery evita isso separando as duas responsabilidades: a agregação acontece por dentro, usando um nome sem conflito (`janela`); a camada externa só **renomeia** o resultado já correto para `time` — nome exigido pelo Grafana quando o **Format** do painel está em **Time series** (é assim que ele identifica o eixo do tempo e separa uma linha por valor de `produto`). Com **Format: Table** essa exigência de nome não existe, mas também não há a separação em múltiplas séries — por isso o passo 8 pede explicitamente **Time series**.
+
+### Segundo painel
+
+Execute as etapas do primeiro painel, mas desta vez inclua a consulta a seguir:
+```sql
+SELECT janela AS time, produto, total_vendas
+FROM (
+  SELECT
+    date_bin(INTERVAL '10 seconds', time) AS janela,
+    produto,
+    SUM(quantidade) AS total_vendas
+  FROM pedidos
+  WHERE $__timeFilter(time)
+    AND pais = 'BR'
+    AND produto = 'COMPUTADOR'
+  GROUP BY janela, produto
+)
+ORDER BY time
+```
 
 ---
 
